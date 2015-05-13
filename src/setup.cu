@@ -404,7 +404,7 @@ void finish_and_cleanup(struct recon_metadata * mr){
 	fclose(outfile);
     }
     
-    // Free all allocations in metadata
+    // Free all remaining allocations in metadata
     free(mr->ctd.raw);
     free(mr->ctd.rebin);
     free(mr->ctd.image);

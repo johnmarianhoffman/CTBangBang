@@ -56,7 +56,7 @@ int backproject(struct recon_metadata * mr){
     FILE * outfile;
 
     int i=0;
-    //while (i<(mr->ri.n_proj_pull-2*cg.add_projections)){
+
     while (i<cg.n_proj_turn/2){
 	for (int k=0;k<n_half_turns;k++){
 	    cudaMemcpyToArrayAsync(cu_proj_1,0,k*I*cg.n_rows,&mr->ctd.rebin[(i+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream1);
@@ -66,8 +66,6 @@ int backproject(struct recon_metadata * mr){
 	for (int k=0;k<n_half_turns;k++){
 	    cudaMemcpyToArrayAsync(cu_proj_2,0,k*I*cg.n_rows,&mr->ctd.rebin[(i+I+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream1);
 	}
-
-	//cudaMemcpyToArrayAsync(cu_proj_2,0,0,&mr->ctd.rebin[(i+I)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream2);
 	cudaBindTextureToArray(tex_b,cu_proj_2,channelDesc);
 	
 	// Kernel call 1
