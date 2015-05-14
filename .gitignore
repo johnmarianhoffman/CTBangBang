@@ -5,6 +5,9 @@
 #Executables
 test
 
+# Parameter files
+**/*.prm
+
 # Object files
 **/*.o
 *.ko
