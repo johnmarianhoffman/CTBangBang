@@ -1,9 +1,12 @@
 # Emacs
-*~
-\#*\#
+**/*~
+**/\#*\#
+
+#Executables
+test
 
 # Object files
-*.o
+**/*.o
 *.ko
 *.obj
 *.elf
