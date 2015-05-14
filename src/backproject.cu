@@ -8,9 +8,6 @@
 #define By 32
 
 int backproject(struct recon_metadata * mr){
-
-    cudaSetDevice(1);
-    cudaDeviceReset();
     
     struct ct_geom cg=mr->cg;
 

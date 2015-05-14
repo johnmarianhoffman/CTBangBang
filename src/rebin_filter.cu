@@ -44,8 +44,6 @@ int rebin_filter(struct recon_metadata * mr){
 }
 
 void rebin_nffs(struct recon_metadata *mr){
-    cudaSetDevice(1);
-    cudaDeviceReset();
 
     cudaStream_t stream1,stream2;
     cudaStreamCreate(&stream1);
@@ -169,8 +167,6 @@ void rebin_nffs(struct recon_metadata *mr){
 }
 
 void rebin_pffs(struct recon_metadata *mr){
-    cudaSetDevice(1);
-    cudaDeviceReset();
 
     // Set up some constants on the host 
     struct ct_geom cg=mr->cg;
@@ -345,8 +341,6 @@ void rebin_pffs(struct recon_metadata *mr){
 }
 void rebin_zffs(struct recon_metadata *mr){
 
-    cudaSetDevice(1);
-    cudaDeviceReset();
 
     // Two GPU parts to this rebin:
     // (1) Split arrays and reshape into sheets
@@ -544,8 +538,6 @@ void rebin_zffs(struct recon_metadata *mr){
     
 }
 void rebin_affs(struct recon_metadata *mr){
-    cudaSetDevice(1);
-    cudaDeviceReset();
 
     // Set up some constants on the host 
     struct ct_geom cg=mr->cg;

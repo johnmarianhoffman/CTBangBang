@@ -2,8 +2,8 @@ RawDataDir:	/home/john/raw_data/def_as_acr_test_data/raw/
 RawDataFile:	z_phi_ffs_64_0p6.ptr
 Nrows:		64
 CollSlicewidth:	0.6
-StartPos:	197.9
-EndPos:		197.9
+StartPos:	150.9
+EndPos:		188.7
 SliceThickness:	0.6
 AcqFOV:		500.0
 ReconFOV:	250.0
