@@ -26,9 +26,14 @@ __device__ inline float r_fr(float da, float dr){
 
 __device__ inline float get_beta_idx(float beta,float * beta_lookup,int n_elements){
     int idx_low=0;
-    while (beta>beta_lookup[idx_low]&&idx_low<n_elements){
-	idx_low++;
+
+    while (beta>beta_lookup[idx_low]&&idx_low<(n_elements-1)){
+    	idx_low++;
     }
+
+    if (idx_low==0)
+	idx_low++; 
+    
     return (float)idx_low-1.0f+(beta-beta_lookup[idx_low-1])/(beta_lookup[idx_low]-beta_lookup[idx_low-1]);
 }
 
