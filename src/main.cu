@@ -76,23 +76,28 @@ int main(int argc, char ** argv){
 	printf("Configuring final reconstruction parameters...\n");
     configure_reconstruction(&mr);
 
-    // Step 3: Extract raw data from file into memory
-    if (mr.flags.verbose)
-	printf("Reading raw data from file...\n");
-    extract_projections(&mr);
+    for (int i=0;i<mr.ri.n_blocks;i++){
+
+	update_block_info(&mr);
+	
+	// Step 3: Extract raw data from file into memory
+	if (mr.flags.verbose)
+	    printf("Reading raw data from file...\n");
+	extract_projections(&mr);
     
-    /* --- Step 4 handled by functions in rebin_filter.cu --- */
-    // Step 4: Rebin and filter
-    if (mr.flags.verbose)
-	printf("Rebinning and filtering data...\n");
-    rebin_filter(&mr);
+	/* --- Step 4 handled by functions in rebin_filter.cu --- */
+	// Step 4: Rebin and filter
+	if (mr.flags.verbose)
+	    printf("Rebinning and filtering data...\n");
+	rebin_filter(&mr);
     
-    /* --- Step 5 handled by functions in backproject.cu ---*/
-    // Step 5: Backproject
-    if (mr.flags.verbose)
-	printf("Backprojecting...\n");
-    backproject(&mr);
-    
+	/* --- Step 5 handled by functions in backproject.cu ---*/
+	// Step 5: Backproject
+	if (mr.flags.verbose)
+	    printf("Backprojecting...\n");
+	backproject(&mr);
+	
+    }
     // Step 6: Save image data to disk (found in setup.cu)
     if (mr.flags.verbose)
 	printf("Writing image data to disk...\n");

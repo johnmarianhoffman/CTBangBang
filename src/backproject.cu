@@ -75,7 +75,8 @@ int backproject(struct recon_metadata * mr){
 	
     }
 
-    cudaMemcpy(mr->ctd.image,d_output,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon*sizeof(float),cudaMemcpyDeviceToHost);
+    long block_offset=(mr->ri.cb.block_idx-1)*mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block;
+    cudaMemcpy(&mr->ctd.image[block_offset],d_output,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block*sizeof(float),cudaMemcpyDeviceToHost);
 
     outfile=fopen("/home/john/Desktop/image_data.txt","w");
     fwrite(mr->ctd.image,sizeof(float),mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon,outfile);
