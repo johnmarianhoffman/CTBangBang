@@ -101,6 +101,7 @@ int main(int argc, char ** argv){
     if (mr.flags.verbose)
 	printf("Done.\n");
 
+    cudaDeviceReset();
     return 0;
    
 }

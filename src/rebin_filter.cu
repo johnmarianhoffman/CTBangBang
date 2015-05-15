@@ -827,6 +827,9 @@ void rebin_affs(struct recon_metadata *mr){
 
 
     free(h_output);
+
+    cudaFree(d_rebin_t1);
+    cudaFree(d_rebin_t2);
     
     cudaFreeArray(cu_raw_1);
     cudaFreeArray(cu_raw_2);
