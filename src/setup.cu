@@ -10,6 +10,7 @@
 #include <read_raw_file.h>
 
 #define pi 3.1415926535897f
+#define BLOCK_SLICES 32
 
 int array_search(float key,double * array,int numel_array,int search_type);
 
@@ -244,13 +245,16 @@ void configure_reconstruction(struct recon_metadata *mr){
     
     /* --- Figure out how many and which projections to grab --- */
     int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
-
+    int n_slices_block=BLOCK_SLICES;
+    
     int recon_direction=fabs(rp.end_pos-rp.start_pos)/(rp.end_pos-rp.start_pos);
     if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
 	recon_direction=1;
 
     int n_slices_requested=floor(fabs(rp.end_pos-rp.start_pos)/rp.slice_thickness)+1;
     int n_slices_recon=(n_slices_requested-1)+(32-(n_slices_requested-1)%32);
+
+    int n_blocks=n_slices_recon/n_slices_block;
     
     float recon_start_pos=rp.start_pos;
     float recon_end_pos=rp.start_pos+recon_direction*(n_slices_recon-1)*rp.slice_thickness;
@@ -292,6 +296,8 @@ void configure_reconstruction(struct recon_metadata *mr){
     mr->ri.n_ffs=n_ffs;
     mr->ri.n_slices_requested=n_slices_requested;
     mr->ri.n_slices_recon=n_slices_recon;
+    mr->ri.n_slices_block=n_slices_block;
+    mr->ri.n_blocks=n_blocks;
     mr->ri.idx_slice_start=idx_slice_start;
     mr->ri.idx_slice_end=idx_slice_end; 
     mr->ri.recon_start_pos=recon_start_pos;
@@ -304,6 +310,68 @@ void configure_reconstruction(struct recon_metadata *mr){
     mr->ctd.raw=(float*)calloc(cg.n_channels*cg.n_rows_raw*n_proj_pull,sizeof(float));
     mr->ctd.rebin=(float*)calloc(cg.n_channels_oversampled*cg.n_rows*(n_proj_pull-2*cg.add_projections_ffs)/n_ffs,sizeof(float));
     mr->ctd.image=(float*)calloc(rp.nx*rp.ny*n_slices_recon,sizeof(float));
+}
+
+void update_block_info(recon_metadata *mr){
+
+    struct recon_info ri=mr->ri;
+    struct recon_params rp=mr->rp;
+    struct ct_geom cg=mr->cg;
+    
+    /* --- Figure out how many and which projections to grab --- */
+    int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
+
+    int recon_direction=fabs(rp.end_pos-rp.start_pos)/(rp.end_pos-rp.start_pos);
+    if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
+	recon_direction=1;
+    
+    float block_slice_start=ri.recon_start_pos+recon_direction*ri.cb.block_idx*rp.slice_thickness*ri.n_slices_block;
+    float block_slice_end=block_slice_start+recon_direction*(ri.n_slices_block-1)*rp.slice_thickness;
+    int array_direction=fabs(mr->table_positions[100]-mr->table_positions[0])/(mr->table_positions[100]-mr->table_positions[0]);
+    int idx_block_slice_start=array_search(block_slice_start,mr->table_positions,rp.n_readings,array_direction);
+    int idx_block_slice_end=array_search(block_slice_end,mr->table_positions,rp.n_readings,array_direction);
+
+    // We always pull projections in the order they occur in the raw
+    // data.  If the end_pos comes before the start position in the
+    // array, we use the end_pos as the "first" slice to pull
+    // projections for.  This method will take into account the
+    // ordering of projections with ascending or descending table
+    // position, as well as any slice ordering the user requests.
+    
+    int idx_pull_start;
+    int idx_pull_end;
+    if (idx_block_slice_start>idx_block_slice_end){
+	idx_pull_start=idx_block_slice_end-cg.n_proj_ffs/2-cg.add_projections_ffs;
+	idx_pull_start=(idx_pull_start-1)+(n_ffs-(idx_pull_start-1)%n_ffs);
+	idx_pull_end=idx_block_slice_start+cg.n_proj_ffs/2+cg.add_projections_ffs;
+	idx_pull_end=(idx_pull_end-1)+(n_ffs-(idx_pull_end-1)%n_ffs);
+    }
+    else{
+	idx_pull_start=idx_block_slice_start-cg.n_proj_ffs/2-cg.add_projections_ffs;
+	idx_pull_start=(idx_pull_start-1)+(n_ffs-(idx_pull_start-1)%n_ffs);
+	idx_pull_end=idx_block_slice_end+cg.n_proj_ffs/2+cg.add_projections_ffs;
+	idx_pull_end=(idx_pull_end-1)+(n_ffs-(idx_pull_end-1)%n_ffs);
+    }
+
+    idx_pull_end+=256;
+   
+    int n_proj_pull=idx_pull_end-idx_pull_start;
+
+    // Ensure that we have a number of projections divisible by 128 (because GPU)
+    n_proj_pull=(n_proj_pull-1)+(128-(n_proj_pull-1)%128);
+    idx_pull_end=idx_pull_start+n_proj_pull;
+    
+    // copy this info into our recon metadata
+    mr->ri.cb.block_slice_start=block_slice_start;
+    mr->ri.cb.block_slice_end=block_slice_end;
+    mr->ri.cb.idx_block_slice_start=idx_block_slice_start;
+    mr->ri.cb.idx_block_slice_end=idx_block_slice_end; 
+
+    mr->ri.idx_pull_start=idx_pull_start;
+    mr->ri.idx_pull_end=idx_pull_end;
+    mr->ri.n_proj_pull=n_proj_pull;
+
+    mr->ri.cb.block_idx++;
 }
 
 void extract_projections(struct recon_metadata * mr){
@@ -366,13 +434,28 @@ void finish_and_cleanup(struct recon_metadata * mr){
     struct recon_info ri=mr->ri;
 
     float * temp_out=(float*)calloc(rp.nx*rp.ny*ri.n_slices_recon,sizeof(float));
+
+    int recon_direction=(mr->ri.idx_slice_start-mr->ri.idx_slice_end)/abs(mr->ri.idx_slice_start-mr->ri.idx_slice_end);
+
+    if (recon_direction!=1&&recon_direction!=-1&&recon_direction!=0)
+	printf("An error may have occurred\n");
+
+    if (recon_direction!=1&&recon_direction!=-1)
+	recon_direction=1;
+
+    int table_direction=(mr->table_positions[1000]-mr->table_positions[0])/abs(mr->table_positions[1000]-mr->table_positions[0]);
+    if (table_direction!=1&&table_direction!=-1)
+	printf("Axial scans are currently unsupported, or a different error has occurred\n");
     
     // Check for a reversed stack of images and flip, otherwise just copy
-    if (mr->ri.idx_slice_start>mr->ri.idx_slice_end){
-	for (int z=0;z<ri.n_slices_recon;z++){
-	    for (int x=0;x<rp.nx;x++){
-		for (int y=0;y<rp.ny;y++){
-		    temp_out[z*rp.nx*rp.ny+y*rp.nx+x]=mr->ctd.image[((ri.n_slices_recon-1)-z)*rp.nx*rp.ny+y*rp.nx+x];
+    if (recon_direction!=table_direction){
+	for (int b=0;b<ri.n_blocks;b++){
+	    for (int z=0;z<ri.n_slices_block;z++){
+		for (int x=0;x<rp.nx;x++){
+		    for (int y=0;y<rp.ny;y++){
+			long block_offset=b*rp.nx*rp.ny*ri.n_slices_block;
+			temp_out[z*rp.nx*rp.ny+y*rp.nx+x+block_offset]=mr->ctd.image[((ri.n_slices_block-1)-z)*rp.nx*rp.ny+y*rp.nx+x+block_offset];
+		    }
 		}
 	    }
 	}
