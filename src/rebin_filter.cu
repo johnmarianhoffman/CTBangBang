@@ -64,11 +64,11 @@ void rebin_nffs(struct recon_metadata *mr){
     cudaMemcpyToSymbol(d_ri,&ri,sizeof(struct recon_info),0,cudaMemcpyHostToDevice);
     
     // Ready our filter
-    float * h_filter=(float*)calloc(cg.n_channels_oversampled,sizeof(float));
+    float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
     float * d_filter;
-    cudaMalloc(&d_filter,cg.n_channels_oversampled*sizeof(float));
+    cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
     
     // Configure textures (see rebin_filter.cuh)
     tex_a.addressMode[0] = cudaAddressModeClamp;
@@ -272,11 +272,11 @@ void rebin_pffs(struct recon_metadata *mr){
     cudaMalloc(&d_output,cg.n_channels_oversampled*cg.n_rows*ri.n_proj_pull/ri.n_ffs*sizeof(float));
 
     // Ready our filter
-    float * h_filter=(float*)calloc(cg.n_channels_oversampled,sizeof(float));
+    float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
     float * d_filter;
-    cudaMalloc(&d_filter,cg.n_channels_oversampled*sizeof(float));
+    cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
     
     int sheet_size=cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs;
 
@@ -474,12 +474,12 @@ void rebin_zffs(struct recon_metadata *mr){
     }
 
     // Ready our filter
-    float * h_filter=(float*)calloc(cg.n_channels_oversampled,sizeof(float));
+    float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
     float * d_filter;
-    cudaMalloc(&d_filter,cg.n_channels_oversampled*sizeof(float));
+    cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
-    
+    cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+
     dim3 threads_rebin(32,32);
     dim3 blocks_rebin(cg.n_channels_oversampled/threads_rebin.x,ri.n_proj_pull/ri.n_ffs/threads_rebin.y);
 
@@ -772,13 +772,21 @@ void rebin_affs(struct recon_metadata *mr){
 	free(h_b_lookup_2);
     }
 
-    
     // Ready our filter
-    float * h_filter=(float*)calloc(cg.n_channels_oversampled,sizeof(float));
+    float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
     float * d_filter;
-    gpuErrchk(cudaMalloc(&d_filter,cg.n_channels_oversampled*sizeof(float)));
+    cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    gpuErrchk(cudaMemcpy(d_filter,h_filter,cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice));
+    cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+
+    if (mr->flags.testing){
+	char fullpath[4096+255];
+	strcpy(fullpath,mr->homedir);
+	strcat(fullpath,"/Desktop/filter.ct_test");
+	FILE * outfile=fopen(fullpath,"w");
+	fwrite(h_filter,sizeof(float),2*cg.n_channels_oversampled,outfile);
+	fclose(outfile);
+    }
     
     dim3 threads_rebin(32,32);
     dim3 blocks_rebin(cg.n_channels_oversampled/threads_rebin.x,ri.n_proj_pull/ri.n_ffs/threads_rebin.y);
@@ -798,7 +806,6 @@ void rebin_affs(struct recon_metadata *mr){
 	
 	a2_rebin_b<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
 	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,d_filter,2*i+1);
-
     }
 
     float * h_output;
@@ -876,6 +883,6 @@ void load_filter(float * f_array,struct recon_metadata * mr){
 
     filter_file=fopen(fullpath,"r");
 
-    fread(f_array,sizeof(float),cg.n_channels_oversampled,filter_file);
+    fread(f_array,sizeof(float),2*cg.n_channels_oversampled,filter_file);
     fclose(filter_file);
 }
