@@ -131,38 +131,61 @@ struct recon_params configure_recon_params(char * filename){
      return prms; 
  } 
 
- struct ct_geom configure_ct_geom(struct recon_params rp){ 
-     struct ct_geom cg; 
+struct ct_geom configure_ct_geom(struct recon_params rp){ 
+    struct ct_geom cg; 
 
-     switch (rp.scanner){ 
+    switch (rp.scanner){ 
 
-     case 0: // Scanner to mess around with 
- 	break; 
+    case 0: // Non-standard scanner (in this case Fred Noo's Simulated Scanner)
 
-     case 1: // Definition AS 
+	//float det_spacing_1=1.4083f;
+	//float det_spacing_2=1.3684f;
+	 
+	// Physical geometry of the scanner (cannot change from scan to scan) 
+	cg.r_f=570.0f; 
+	cg.src_to_det=1040.0f; 
+	cg.anode_angle=7.0f*pi/180.0f; 
+	cg.fan_angle_increment=1.4083f/cg.src_to_det;
+	cg.theta_cone=2.0f*atan(7.5f*1.3684f/cg.src_to_det);
+	cg.central_channel=335.25f; 
+
+	// Size and setup of the detector helix 
+	cg.n_proj_turn=1160; 
+	cg.n_proj_ffs=cg.n_proj_turn*pow(2,rp.phi_ffs)*pow(2,rp.z_ffs); 
+	cg.n_channels=672; 
+	cg.n_channels_oversampled=2*cg.n_channels; 
+	cg.n_rows=(unsigned int)rp.n_rows; 
+	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
+	cg.z_rot=15.6f; // This is related to the pitch, which we'll have to figure out 
+	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
+	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
+
+	break; 
+
+    case 1: // Definition AS 
 	
- 	// Physical geometry of the scanner (cannot change from scan to scan) 
- 	cg.r_f=595.0f; 
- 	cg.src_to_det=1085.6f; 
- 	cg.anode_angle=7.0f*pi/180.0f; 
- 	cg.fan_angle_increment=0.067864f*pi/180.0f; 
- 	cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f); 
- 	cg.central_channel=366.25f; 
+	// Physical geometry of the scanner (cannot change from scan to scan) 
+	cg.r_f=595.0f; 
+	cg.src_to_det=1085.6f; 
+	cg.anode_angle=7.0f*pi/180.0f; 
+	cg.fan_angle_increment=0.067864f*pi/180.0f; 
+	cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f); 
+	cg.central_channel=366.25f; 
 
- 	// Size and setup of the detector helix 
- 	cg.n_proj_turn=1152; 
- 	cg.n_proj_ffs=cg.n_proj_turn*pow(2,rp.phi_ffs)*pow(2,rp.z_ffs); 
- 	cg.n_channels=736; 
- 	cg.n_channels_oversampled=2*cg.n_channels; 
- 	cg.n_rows=(unsigned int)rp.n_rows; 
- 	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
- 	cg.z_rot=19.2f; // This is related to the pitch, which we'll have to figure out 
- 	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
- 	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
+	// Size and setup of the detector helix 
+	cg.n_proj_turn=1152; 
+	cg.n_proj_ffs=cg.n_proj_turn*pow(2,rp.phi_ffs)*pow(2,rp.z_ffs); 
+	cg.n_channels=736; 
+	cg.n_channels_oversampled=2*cg.n_channels; 
+	cg.n_rows=(unsigned int)rp.n_rows; 
+	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
+	cg.z_rot=19.2f; // This is related to the pitch, which we'll have to figure out 
+	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
+	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 	
- 	break; 
+	break; 
 
-     case 2: // Sensation 64 
+    case 2: // Sensation 64 
 
  	// Physical geometry of the scanner (cannot change from scan to scan) 
  	cg.r_f=570.0f; 
@@ -391,7 +414,7 @@ void extract_projections(struct recon_metadata * mr){
 	for (int i=0;i<mr->ri.n_proj_pull;i++){
 	    ReadPTRFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder);
 	    for (int j=0;j<cg.n_channels*cg.n_rows_raw;j++){
-		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j];
+		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j]/2294.5f;
 	    }
 	}
 	break;}
@@ -399,7 +422,7 @@ void extract_projections(struct recon_metadata * mr){
 	for (int i=0;i<mr->ri.n_proj_pull;i++){
 	    ReadCTDFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder);
 	    for (int j=0;j<cg.n_channels*cg.n_rows_raw;j++){
-		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j];
+		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j]/2294.5f;
 	    }
 	}
 	break;}
@@ -408,7 +431,7 @@ void extract_projections(struct recon_metadata * mr){
 	for (int i=0;i<mr->ri.n_proj_pull;i++){
 	    ReadIMAFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder,raw_data_subtype,rp.raw_data_offset);
 	    for (int j=0;j<cg.n_channels*cg.n_rows_raw;j++){
-		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j];
+		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j]/2294.5f;
 	    }
 	}
 	break;}	
