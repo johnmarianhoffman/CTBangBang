@@ -238,10 +238,17 @@ void configure_reconstruction(struct recon_metadata *mr){
     
     FILE * raw_file;
     raw_file=fopen(rp.raw_data_dir,"rb");
+    if (raw_file==NULL){
+	perror("Raw data file not found.");
+	exit(1);	
+    }
 
     switch (rp.file_type){
-    case 0:{ // Binary file
-	// Need to add code to make up angles so we can at least still recon
+    case 0:{; // Binary file
+	for (int i=0;i<rp.n_readings;i++){
+	    mr->tube_angles[i]=fmod(((360.0f/cg.n_proj_ffs)*i),360.0f);
+	    mr->table_positions[i]=(rp.n_readings/cg.n_proj_ffs)*cg.z_rot-i*cg.z_rot/cg.n_proj_ffs;
+	}	
 	break;}
     case 1:{; //PTR
 	for (int i=0;i<rp.n_readings;i++){
@@ -409,6 +416,10 @@ void extract_projections(struct recon_metadata * mr){
     
     switch (mr->rp.file_type){
     case 0:{ // binary
+	//ReadBinaryFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder);
+//	for (int i=0;i<mr->ri.n_proj_pull;i++){
+//	    
+//	}
 	break;}
     case 1:{ // PTR
 	for (int i=0;i<mr->ri.n_proj_pull;i++){

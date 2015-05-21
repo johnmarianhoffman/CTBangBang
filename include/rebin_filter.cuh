@@ -282,28 +282,34 @@ __global__ void filter(float * output, float * filter, int row){
     int proj=threadIdx.x+blockDim.x*blockIdx.x;
 
     float r[1500];
-    float f[1500];
-    float Result[2*1500-1];
-    
-    for (int i=0;i<d_cg.n_channels_oversampled;i++){
-	r[i]=output[d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*i+proj];
+    float f[3000];
+    float Result[(4500)-1];
+
+    for (int i=0;i<2*d_cg.n_channels_oversampled;i++){
 	f[i]=filter[i];
     }
 
-    size_t kmin, kmax,count;
-    size_t l=d_cg.n_channels_oversampled;
+    for (int i=0;i<d_cg.n_channels_oversampled;i++){
+	r[i]=output[d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*i+proj];
+    }
     
-    for (int n=l/2;n<((2*l-1)-l/2);n++){
+    size_t kmin, kmax,count;
+    size_t s_length=d_cg.n_channels_oversampled;
+    size_t k_length=2*d_cg.n_channels_oversampled;
+
+    //size_t l=d_cg.n_channels_oversampled;
+    
+    for (int n=k_length/2;n<((k_length+s_length)-k_length/2);n++){
 	Result[n]=0;
-	kmin = (n >= l - 1) ? n - (l - 1) : 0;
-	kmax = (n < l - 1) ? n : l - 1;
+	kmin = (n >= k_length - 1) ? n - (k_length - 1) : 0;
+	kmax = (n < s_length - 1) ? n : s_length - 1;
 	for (count = kmin; count <= kmax; count++){
 	    Result[n] += r[count] * f[n - count];
 	}
     }
 
     for (int i=0;i<d_cg.n_channels_oversampled;i++){
-	output[d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*i+proj]=Result[l/2+i];
+	output[d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*i+proj]=Result[k_length/2+i];
     }
 }
 
