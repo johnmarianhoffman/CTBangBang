@@ -416,10 +416,12 @@ void extract_projections(struct recon_metadata * mr){
     
     switch (mr->rp.file_type){
     case 0:{ // binary
-	//ReadBinaryFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder);
-//	for (int i=0;i<mr->ri.n_proj_pull;i++){
-//	    
-//	}
+	for (int i=0;i<mr->ri.n_proj_pull;i++){
+	    ReadBinaryFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder);
+	    for (int j=0;j<cg.n_channels*cg.n_rows_raw;j++){
+		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j];
+	    }
+	}
 	break;}
     case 1:{ // PTR
 	for (int i=0;i<mr->ri.n_proj_pull;i++){
