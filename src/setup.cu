@@ -207,12 +207,12 @@ struct ct_geom configure_ct_geom(struct recon_params rp){
  	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 
  	break; 
-     } 
+    } 
 
-     cg.acq_fov=rp.acq_fov; 
+    cg.acq_fov=rp.acq_fov; 
 
-     if (rp.phi_ffs==1){ 
- 	cg.central_channel+=0.375f; 
+    if (rp.phi_ffs==1){ 
+	cg.central_channel+=0.375f; 
     }
     
 

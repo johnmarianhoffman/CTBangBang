@@ -544,8 +544,8 @@ void rebin_affs(struct recon_metadata *mr){
     struct recon_info ri=mr->ri;
     struct recon_params rp=mr->rp;
 
-    const float da=cg.src_to_det*cg.r_f*cg.fan_angle_increment/(4.0f*(cg.src_to_det-cg.r_f));
-    const float dr=cg.src_to_det*rp.coll_slicewidth/(4.0*(cg.src_to_det-cg.r_f)*tan(cg.anode_angle));
+    const double da=cg.src_to_det*cg.r_f*cg.fan_angle_increment/(4.0f*(cg.src_to_det-cg.r_f));
+    const double dr=cg.src_to_det*rp.coll_slicewidth/(4.0*(cg.src_to_det-cg.r_f)*tan(cg.anode_angle));
     
     // Set up some constants and infrastructure on the GPU
     cudaStream_t stream1,stream2,stream3,stream4;
