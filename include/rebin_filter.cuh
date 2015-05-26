@@ -20,6 +20,10 @@ __device__ inline float beta_rk(float da,float dr,float channel,int os_flag){
     return angle(-(d_cg.r_f+dr),-(da),-(d_cg.src_to_det*cos(b0)+dr),-(d_cg.src_to_det*sin(b0)+da));
 }
 
+__device__ inline float d_alpha_r(float da,float dr){
+    return angle(d_cg.r_f,0,d_cg.r_f+dr,da);
+}
+
 __device__ inline float r_fr(float da, float dr){
     return sqrt((d_cg.r_f+dr)*(d_cg.r_f+dr)+da*da);
 }
@@ -85,9 +89,11 @@ __global__ void p1_rebin_t(float * output,float da,int row){
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel)+proj;
 
-    //float beta = asin((channel-d_cg.central_channel)*d_cg.fan_angle_increment*d_cg.r_f/r_fr(-da,0.0));
-    float beta = beta_rk(-da,0,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi);
+    da=da;
+
+    
+    float beta = beta_rk(da,0,channel,0);
+    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,0)*d_cg.n_proj_turn/(2.0f*pi);
     
     output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,channel+0.5f);
 }
@@ -99,9 +105,10 @@ __global__ void p2_rebin_t(float * output,float da,int row){
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel+1)+proj;
 
-    //float beta = asin((channel-d_cg.central_channel)*d_cg.fan_angle_increment*d_cg.r_f/r_fr(da,0.0));
+    da=-da;
+    
     float beta = beta_rk(da,0,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,0)*d_cg.n_proj_turn/(2.0f*pi);
     
     output[out_idx]=tex2D(tex_b,alpha_idx+0.5f,channel+0.5f);
 }

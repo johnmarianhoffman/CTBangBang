@@ -208,6 +208,18 @@ void rebin_pffs(struct recon_metadata *mr){
 	i+=2*proj_per_call;
     }
 
+    if (mr->flags.testing){
+	float * h_fs=(float*)calloc(mr->ri.n_proj_pull*cg.n_rows_raw*cg.n_channels,sizeof(float));
+	cudaMemcpy(h_fs,d_fs,mr->ri.n_proj_pull*cg.n_rows_raw*cg.n_channels*sizeof(float),cudaMemcpyDeviceToHost);
+	char fullpath[4096+255];
+	strcpy(fullpath,mr->homedir);
+	strcat(fullpath,"/Desktop/h_fs.ct_test");
+	FILE * outfile=fopen(fullpath,"w");
+	fwrite(h_fs,sizeof(float),mr->ri.n_proj_pull*cg.n_rows_raw*cg.n_channels,outfile);
+	fclose(outfile);
+	free(h_fs);
+    }
+    
     cudaFree(d_raw_1);
     cudaFree(d_raw_2);
 
@@ -247,7 +259,7 @@ void rebin_pffs(struct recon_metadata *mr){
 
 	p1_rebin_t<<<blocks_t_rebin,threads_t_rebin,0,stream1>>>(d_rebin_t,da,i);
 	p2_rebin_t<<<blocks_t_rebin,threads_t_rebin,0,stream2>>>(d_rebin_t,da,i);
-    }
+     }
    
     cudaFree(d_fs);
     cudaFreeArray(cu_raw_1);
