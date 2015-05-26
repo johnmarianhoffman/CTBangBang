@@ -209,9 +209,8 @@ __global__ void a1_rebin_t(float * output,float da, float dr, int row){
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel)+proj;
 
-    //float beta = asin((channel-d_cg.central_channel)*d_cg.fan_angle_increment*d_cg.r_f/r_fr(da,-dr));
     float beta=beta_rk(da,-dr,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,-dr)*d_cg.n_proj_turn/(2.0f*pi);
     
     output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,channel+0.5f);
 }
@@ -223,9 +222,8 @@ __global__ void a2_rebin_t(float * output,float da, float dr, int row){
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel+1)+proj;
 
-    //float beta = asin((channel-d_cg.central_channel)*d_cg.fan_angle_increment*d_cg.r_f/r_fr(-da,-dr));
     float beta=beta_rk(-da,-dr,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(-da,-dr)*d_cg.n_proj_turn/(2.0f*pi);
     
     output[out_idx]=tex2D(tex_b,alpha_idx+0.5f,channel+0.5f);
 }
@@ -237,9 +235,8 @@ __global__ void a3_rebin_t(float * output,float da, float dr, int row){
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel)+proj;
 
-    //float beta = asin((channel-d_cg.central_channel)*d_cg.fan_angle_increment*d_cg.r_f/r_fr(da,dr));
     float beta=beta_rk(da,dr,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,dr)*d_cg.n_proj_turn/(2.0f*pi);
     
     output[out_idx]=tex2D(tex_c,alpha_idx+0.5f,channel+0.5f);
 }
@@ -251,9 +248,8 @@ __global__ void a4_rebin_t(float * output,float da, float dr, int row){
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel+1)+proj;
 
-    //float beta = asin((channel-d_cg.central_channel)*d_cg.fan_angle_increment*d_cg.r_f/r_fr(-da,dr));
     float beta=beta_rk(-da,dr,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(-da,dr)*d_cg.n_proj_turn/(2.0f*pi);
     
     output[out_idx]=tex2D(tex_d,alpha_idx+0.5f,channel+0.5f);
 }
