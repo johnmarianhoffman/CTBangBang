@@ -79,7 +79,7 @@ __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_tur
     
     for (int k=0;k<K;k++){
 	if (sqrt(x*x+y*y)<(d_rp.acq_fov/2.0f)){
-	    output[d_rp.nx*d_rp.ny*(zi+k)+d_rp.nx*xi+yi]+=s[k];//(1.0f/h[k])*s[k];
+	    output[d_rp.nx*d_rp.ny*(zi+k)+d_rp.nx*xi+yi]+=s[k]*2*pi/d_cg.n_proj_turn;//(1.0f/h[k])*s[k];
 	}
 	else{
 	    output[d_rp.nx*d_rp.ny*(zi+k)+d_rp.nx*xi+yi]=0.0f;
@@ -141,7 +141,7 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
     
     for (int k=0;k<K;k++){
 	if (sqrt(x*x+y*y)<(d_rp.acq_fov/2.0f)){
-	    output[d_rp.nx*d_rp.ny*(zi+k)+d_rp.nx*xi+yi]+=s[k];//(1.0f/h[k])*s[k];
+	    output[d_rp.nx*d_rp.ny*(zi+k)+d_rp.nx*xi+yi]+=s[k]*2*pi/d_cg.n_proj_turn;//(1.0f/h[k])*s[k];
 	}
 	else{
 	    output[d_rp.nx*d_rp.ny*(zi+k)+d_rp.nx*xi+yi]=0.0f;//(1.0f/h[k])*s[k];

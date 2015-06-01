@@ -90,7 +90,6 @@ __global__ void p1_rebin_t(float * output,float da,int row){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel)+proj;
 
     da=da;
-
     
     float beta = beta_rk(da,0,channel,0);
     float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,0)*d_cg.n_proj_turn/(2.0f*pi);
