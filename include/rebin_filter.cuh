@@ -9,6 +9,8 @@ texture<float,cudaTextureType2D,cudaReadModeElementType> tex_d;
 
 __constant__ struct ct_geom d_cg;
 __constant__ struct recon_info d_ri;
+__constant__ float d_filter[3000];
+
 
 /* --- Helper functions (called by kernels) --- */
 __device__ inline float angle(float x1,float x2,float y1,float y2){
@@ -285,7 +287,7 @@ __global__ void a2_rebin_b(float * output,float * beta_lookup,float dr,int row){
 
 
 /* --- Filter kernel (we've gotta make this better somehow...) --- */
-__global__ void filter(float * output, float * filter, int row){
+__global__ void filter(float * output, int row){
 
     int proj=threadIdx.x+blockDim.x*blockIdx.x;
 
@@ -294,7 +296,7 @@ __global__ void filter(float * output, float * filter, int row){
     float Result[(4500)-1];
 
     for (int i=0;i<2*d_cg.n_channels_oversampled;i++){
-	f[i]=filter[i];
+	f[i]=d_filter[i];
     }
 
     for (int i=0;i<d_cg.n_channels_oversampled;i++){

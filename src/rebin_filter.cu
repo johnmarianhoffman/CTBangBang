@@ -65,11 +65,12 @@ void rebin_nffs(struct recon_metadata *mr){
     
     // Ready our filter
     float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
-    float * d_filter;
-    cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
+    //float * d_filter;
+    //cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
-    
+    //cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),0,cudaMemcpyHostToDevice);
+
     // Configure textures (see rebin_filter.cuh)
     tex_a.addressMode[0] = cudaAddressModeClamp;
     tex_a.addressMode[1] = cudaAddressModeClamp;
@@ -120,14 +121,14 @@ void rebin_nffs(struct recon_metadata *mr){
 
 	// Launch Kernel A
 	n1_rebin<<<rebin_blocks,rebin_threads,0,stream1>>>(d_output,i);
-	filter<<<filter_blocks,filter_threads,0,stream1>>>(d_output,d_filter,i);
+	filter<<<filter_blocks,filter_threads,0,stream1>>>(d_output,i);
 	    
 	//Begin the second transfer while 1st kernel executes
 	cudaMemcpyToArrayAsync(cu_raw_2,0,0,&sheets[(i+1)*proj_array_size],proj_array_size*sizeof(float),cudaMemcpyHostToDevice,stream2);
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	n2_rebin<<<rebin_blocks,rebin_threads,0,stream2>>>(d_output,i+1);
-	filter<<<filter_blocks,filter_threads,0,stream2>>>(d_output,d_filter,i+1);
+	filter<<<filter_blocks,filter_threads,0,stream2>>>(d_output,i+1);
     }
 	
     cudaFreeArray(cu_raw_1);
@@ -285,11 +286,12 @@ void rebin_pffs(struct recon_metadata *mr){
 
     // Ready our filter
     float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
-    float * d_filter;
-    cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
+    //float * d_filter;
+    //cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
-    
+    //cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),0,cudaMemcpyHostToDevice);
+	
     int sheet_size=cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs;
 
     dim3 threads_rebin(32,32);
@@ -307,10 +309,10 @@ void rebin_pffs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	p1_rebin<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,da,i);
-	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,d_filter,i);
+	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,i);
 	    
 	p2_rebin<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,da,i+1);
-	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,d_filter,i+1);
+	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,i+1);
 
     }
 
@@ -487,11 +489,12 @@ void rebin_zffs(struct recon_metadata *mr){
 
     // Ready our filter
     float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
-    float * d_filter;
-    cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
+    //float * d_filter;
+    //cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
-
+    //cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),0,cudaMemcpyHostToDevice);
+    
     dim3 threads_rebin(32,32);
     dim3 blocks_rebin(cg.n_channels_oversampled/threads_rebin.x,ri.n_proj_pull/ri.n_ffs/threads_rebin.y);
 
@@ -506,10 +509,10 @@ void rebin_zffs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	z1_rebin<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,d_filter,2*i);
+	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,2*i);
 	
 	z2_rebin<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,d_filter,2*i+1);
+	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,2*i+1);
     }
 
     float * h_output;
@@ -786,11 +789,12 @@ void rebin_affs(struct recon_metadata *mr){
 
     // Ready our filter
     float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
-    float * d_filter;
-    cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
+    //float * d_filter;
+    //cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
-
+    //cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),0,cudaMemcpyHostToDevice);
+    
     if (mr->flags.testing){
 	char fullpath[4096+255];
 	strcpy(fullpath,mr->homedir);
@@ -814,10 +818,10 @@ void rebin_affs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	a1_rebin_b<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,d_filter,2*i);
+	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,2*i);
 	
 	a2_rebin_b<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,d_filter,2*i+1);
+	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,2*i+1);
     }
 
     float * h_output;
@@ -887,6 +891,15 @@ void load_filter(float * f_array,struct recon_metadata * mr){
 	break;}
     case -1:{
 	sprintf(fullpath,"%s/resources/filters/f_%i_exp.txt",mr->install_dir,cg.n_channels);
+	break;}
+    case 1:{
+	sprintf(fullpath,"%s/resources/filters/f_%i_smooth.txt",mr->install_dir,cg.n_channels);
+	break;}
+    case 2:{
+	sprintf(fullpath,"%s/resources/filters/f_%i_medium.txt",mr->install_dir,cg.n_channels);
+	break;}
+    case 3:{
+	sprintf(fullpath,"%s/resources/filters/f_%i_sharp.txt",mr->install_dir,cg.n_channels);
 	break;}
     default:{
 	sprintf(fullpath,"%s/resources/filters/f_%i_b%i.txt",mr->install_dir,cg.n_channels,rp.recon_kernel);
