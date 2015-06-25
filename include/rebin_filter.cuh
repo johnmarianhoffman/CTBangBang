@@ -296,7 +296,7 @@ __global__ void filter(float * output, int row){
     float Result[(4500)-1];
 
     for (int i=0;i<2*d_cg.n_channels_oversampled;i++){
-	f[i]=d_filter[i];
+    	f[i]=d_filter[i];
     }
 
     for (int i=0;i<d_cg.n_channels_oversampled;i++){
@@ -310,16 +310,19 @@ __global__ void filter(float * output, int row){
     //size_t l=d_cg.n_channels_oversampled;
     
     for (int n=k_length/2;n<((k_length+s_length)-k_length/2);n++){
-	Result[n]=0;
-	kmin = (n >= k_length - 1) ? n - (k_length - 1) : 0;
-	kmax = (n < s_length - 1) ? n : s_length - 1;
-	for (count = kmin; count <= kmax; count++){
-	    Result[n] += r[count] * f[n - count];
-	}
+    	Result[n]=0;
+    	kmin = (n >= k_length - 1) ? n - (k_length - 1) : 0;
+    	kmax = (n < s_length - 1) ? n : s_length - 1;
+    	for (count = kmin; count <= kmax; count++){
+    	    Result[n] += r[count] * f[n - count];
+    	}
     }
 
-    for (int i=0;i<d_cg.n_channels_oversampled;i++){
-	output[d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*i+proj]=Result[k_length/2+i];
+    int n_ffs=d_ri.n_ffs;
+    int n_proj_pull=d_ri.n_proj_pull;
+    
+    for (int i=0;i<s_length;i++){
+	output[s_length*(n_proj_pull/n_ffs)*row+(n_proj_pull/n_ffs)*i+proj]=Result[k_length/2+i];
     }
 }
 

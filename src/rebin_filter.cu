@@ -101,7 +101,7 @@ void rebin_nffs(struct recon_metadata *mr){
     dim3 rebin_threads(32,32);
     dim3 rebin_blocks(cg.n_channels_oversampled/rebin_threads.x,mr->ri.n_proj_pull/rebin_threads.y);
 
-    dim3 filter_threads(2*128,1);
+    dim3 filter_threads(128,1);
     dim3 filter_blocks(mr->ri.n_proj_pull/mr->ri.n_ffs/filter_threads.x,1);
 
     // Reshape raw data into row sheets
