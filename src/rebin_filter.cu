@@ -101,9 +101,13 @@ void rebin_nffs(struct recon_metadata *mr){
     dim3 rebin_threads(32,32);
     dim3 rebin_blocks(cg.n_channels_oversampled/rebin_threads.x,mr->ri.n_proj_pull/rebin_threads.y);
 
-    dim3 filter_threads(128,1);
-    dim3 filter_blocks(mr->ri.n_proj_pull/mr->ri.n_ffs/filter_threads.x,1);
-
+    // Determine the number of threads needed based on the #define N_PIX (found in rebin_filter.cuh)
+    int n_threads=cg.n_channels_oversampled/N_PIX;
+    
+    dim3 filter_threads(n_threads,1,1);
+    dim3 filter_blocks(1,mr->ri.n_proj_pull/mr->ri.n_ffs,1);
+    unsigned int shared_size=cg.n_channels_oversampled*sizeof(float)+2*cg.n_channels_oversampled*sizeof(float); // row+filter;
+    
     // Reshape raw data into row sheets
     float * sheets=(float*)calloc(cg.n_channels*cg.n_rows_raw*mr->ri.n_proj_pull,sizeof(float));
     for (int i=0;i<cg.n_rows_raw;i++){
@@ -121,14 +125,14 @@ void rebin_nffs(struct recon_metadata *mr){
 
 	// Launch Kernel A
 	n1_rebin<<<rebin_blocks,rebin_threads,0,stream1>>>(d_output,i);
-	filter<<<filter_blocks,filter_threads,0,stream1>>>(d_output,i);
+	filter<<<filter_blocks,filter_threads,shared_size,stream1>>>(d_output,i);
 	    
 	//Begin the second transfer while 1st kernel executes
 	cudaMemcpyToArrayAsync(cu_raw_2,0,0,&sheets[(i+1)*proj_array_size],proj_array_size*sizeof(float),cudaMemcpyHostToDevice,stream2);
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	n2_rebin<<<rebin_blocks,rebin_threads,0,stream2>>>(d_output,i+1);
-	filter<<<filter_blocks,filter_threads,0,stream2>>>(d_output,i+1);
+	filter<<<filter_blocks,filter_threads,shared_size,stream2>>>(d_output,i+1);
     }
 	
     cudaFreeArray(cu_raw_1);
@@ -297,8 +301,12 @@ void rebin_pffs(struct recon_metadata *mr){
     dim3 threads_rebin(32,32);
     dim3 blocks_rebin(cg.n_channels_oversampled/threads_rebin.x,ri.n_proj_pull/ri.n_ffs/threads_rebin.y);
 
-    dim3 threads_filter(2*64,1);
-    dim3 blocks_filter(mr->ri.n_proj_pull/mr->ri.n_ffs/threads_filter.x,1);
+    // Determine the number of threads needed based on the #define N_PIX (found in rebin_filter.cuh)
+    int n_threads=cg.n_channels_oversampled/N_PIX;
+    
+    dim3 threads_filter(n_threads,1,1);
+    dim3 blocks_filter(1,mr->ri.n_proj_pull/mr->ri.n_ffs,1);
+    unsigned int shared_size=cg.n_channels_oversampled*sizeof(float)+2*cg.n_channels_oversampled*sizeof(float); // row+filter;
 
     for (int i=0;i<cg.n_rows;i+=2){
 
@@ -309,10 +317,10 @@ void rebin_pffs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	p1_rebin<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,da,i);
-	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,i);
+	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,i);
 	    
 	p2_rebin<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,da,i+1);
-	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,i+1);
+	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,i+1);
 
     }
 
@@ -498,8 +506,12 @@ void rebin_zffs(struct recon_metadata *mr){
     dim3 threads_rebin(32,32);
     dim3 blocks_rebin(cg.n_channels_oversampled/threads_rebin.x,ri.n_proj_pull/ri.n_ffs/threads_rebin.y);
 
-    dim3 threads_filter(2*64,1);
-    dim3 blocks_filter(mr->ri.n_proj_pull/mr->ri.n_ffs/threads_filter.x,1);
+    // Determine the number of threads needed based on the #define N_PIX (found in rebin_filter.cuh)
+    int n_threads=cg.n_channels_oversampled/N_PIX;
+    
+    dim3 threads_filter(n_threads,1,1);
+    dim3 blocks_filter(1,mr->ri.n_proj_pull/mr->ri.n_ffs,1);
+    unsigned int shared_size=cg.n_channels_oversampled*sizeof(float)+2*cg.n_channels_oversampled*sizeof(float); // row+filter;
     
     for (int i=0;i<cg.n_rows_raw;i++){
 	cudaMemcpyToArrayAsync(cu_raw_1,0,0,&d_fs[cg.n_channels*ri.n_proj_pull/ri.n_ffs*i],cg.n_channels*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream1);
@@ -509,10 +521,10 @@ void rebin_zffs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	z1_rebin<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,2*i);
+	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,2*i);
 	
 	z2_rebin<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,2*i+1);
+	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
     }
 
     float * h_output;
@@ -807,8 +819,12 @@ void rebin_affs(struct recon_metadata *mr){
     dim3 threads_rebin(32,32);
     dim3 blocks_rebin(cg.n_channels_oversampled/threads_rebin.x,ri.n_proj_pull/ri.n_ffs/threads_rebin.y);
 
-    dim3 threads_filter(2*64,1);
-    dim3 blocks_filter(mr->ri.n_proj_pull/mr->ri.n_ffs/threads_filter.x,1);
+    // Determine the number of threads needed based on the #define N_PIX (found in rebin_filter.cuh)
+    int n_threads=cg.n_channels_oversampled/N_PIX;
+    
+    dim3 threads_filter(n_threads,1,1);
+    dim3 blocks_filter(1,mr->ri.n_proj_pull/mr->ri.n_ffs,1);
+    unsigned int shared_size=cg.n_channels_oversampled*sizeof(float)+2*cg.n_channels_oversampled*sizeof(float); // row+filter;
     
     for (int i=0;i<cg.n_rows_raw;i++){
 	cudaMemcpyToArrayAsync(cu_raw_1,0,0,&d_rebin_t1[cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs*i],cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream1);
@@ -818,10 +834,10 @@ void rebin_affs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	a1_rebin_b<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,2*i);
+	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,2*i);
 	
 	a2_rebin_b<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,2*i+1);
+	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
     }
 
     float * h_output;
@@ -867,8 +883,6 @@ void rebin_affs(struct recon_metadata *mr){
     cudaStreamDestroy(stream3);
     cudaStreamDestroy(stream4);
 }
-
-
 
 void copy_sheet(float * sheetptr, int row,struct recon_metadata * mr,struct ct_geom cg){
     for (int j=0;j<cg.n_channels;j++){
