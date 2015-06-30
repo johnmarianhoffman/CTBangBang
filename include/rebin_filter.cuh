@@ -1,6 +1,7 @@
 #include <recon_structs.h>
 
 #define pi 3.1415926535897f
+#define N_PIX 2 // There may be a time in the future were this needs to be more flexible, but for right now, 2 works for all scanners
 
 texture<float,cudaTextureType2D,cudaReadModeElementType> tex_a;
 texture<float,cudaTextureType2D,cudaReadModeElementType> tex_b;
@@ -286,40 +287,46 @@ __global__ void a2_rebin_b(float * output,float * beta_lookup,float dr,int row){
 }
 
 
-/* --- Filter kernel (we've gotta make this better somehow...) --- */
+/* --- Filter kernel --- */
 __global__ void filter(float * output, int row){
 
-    int proj=threadIdx.x+blockDim.x*blockIdx.x;
+    extern __shared__ float s[];
+    float * s_row=s;
+    float * s_filter=(float*) &s_row[d_cg.n_channels_oversampled];
 
-    float r[1500];
-    float f[3000];
-    float Result[(4500)-1];
-
-    for (int i=0;i<2*d_cg.n_channels_oversampled;i++){
-	f[i]=d_filter[i];
-    }
-
-    for (int i=0;i<d_cg.n_channels_oversampled;i++){
-	r[i]=output[d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*i+proj];
-    }
+    float conv_pix[N_PIX]={0};
     
-    size_t kmin, kmax,count;
-    size_t s_length=d_cg.n_channels_oversampled;
-    size_t k_length=2*d_cg.n_channels_oversampled;
+    int channel=threadIdx.x*N_PIX;
+    int proj=blockIdx.y;
 
-    //size_t l=d_cg.n_channels_oversampled;
+    int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
+    int first_output_pixel=row*d_cg.n_channels_oversampled*n_proj+n_proj*channel+proj;
+
+    int N=d_cg.n_channels_oversampled;
     
-    for (int n=k_length/2;n<((k_length+s_length)-k_length/2);n++){
-	Result[n]=0;
-	kmin = (n >= k_length - 1) ? n - (k_length - 1) : 0;
-	kmax = (n < s_length - 1) ? n : s_length - 1;
-	for (count = kmin; count <= kmax; count++){
-	    Result[n] += r[count] * f[n - count];
-	}
+    // Load in 2*n_pix of filter data and n_pix of row data to shared memory
+#pragma unroll
+    for (int i=0;i<N_PIX;i++){
+	s_row[channel+i]=output[first_output_pixel+i*n_proj];
+	s_filter[channel+i]=d_filter[channel+i];
+	s_filter[channel+i+N]=d_filter[channel+i+N];
     }
 
-    for (int i=0;i<d_cg.n_channels_oversampled;i++){
-	output[d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*i+proj]=Result[k_length/2+i];
+    __syncthreads(); // Make sure every thread has finished copying data into shared memory
+
+    // Compute n_pix of the convolution    
+#pragma unroll
+    for (int i=0;i<N_PIX;i++){
+	int l=channel+i;
+	for (int k=0;k<N;k++){
+	    conv_pix[i]+=s_filter[l-k+(N)]*s_row[k];//s_filter[l-k+(N-1)]*
+	}	
+    }
+
+    // Copy back to global memory
+#pragma unroll
+    for (int i=0;i<N_PIX;i++){
+	output[first_output_pixel+i*n_proj]=conv_pix[i];
     }
 }
 
