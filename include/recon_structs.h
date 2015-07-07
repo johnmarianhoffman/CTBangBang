@@ -77,6 +77,7 @@ struct ct_geom{
 struct flags{
     int testing;
     int verbose;
+    int no_gpu;
 };
     
 struct recon_metadata {

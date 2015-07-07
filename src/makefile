@@ -11,7 +11,7 @@ LIBS=$(IDIR_READER)read_raw_file.o -lm
 
 CFLAGS=$(INCLUDES) -L$(IDIR_READER) -g
 
-_OBJ=main.o setup.o rebin_filter.o backproject.o
+_OBJ=main.o setup.o rebin_filter.o rebin_filter_cpu.o backproject.o
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 
 all: ../test
@@ -26,6 +26,9 @@ obj/setup.o: setup.cu $(IDIR_READER)read_raw_file.h $(IDIR_RECON)setup.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<
 
 obj/rebin_filter.o: rebin_filter.cu $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)rebin_filter.cuh 
+	$(NVCC) $(CFLAGS) -c -o $@ $<
+
+obj/rebin_filter_cpu.o: rebin_filter_cpu.cu $(IDIR_RECON)rebin_filter_cpu.h 
 	$(NVCC) $(CFLAGS) -c -o $@ $<
 
 obj/backproject.o: backproject.cu $(IDIR_RECON)backproject.cuh

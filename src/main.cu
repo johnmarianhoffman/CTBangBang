@@ -5,6 +5,7 @@
 #include <recon_structs.h>
 #include <setup.h>
 #include <rebin_filter.h>
+#include <rebin_filter_cpu.h>
 #include <backproject.h>
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
@@ -45,6 +46,9 @@ int main(int argc, char ** argv){
 	else if (strcmp(argv[i],"-v")==0){
 	    mr.flags.verbose=1;
 	}
+	else if (strcmp(argv[i],"--no-gpu")==0){
+	    mr.flags.no_gpu=1;
+	}
 	else{
 	    usage();
 	}
@@ -55,8 +59,16 @@ int main(int argc, char ** argv){
     // which is unlikely to have a display connected
     int device_count=0;
     cudaGetDeviceCount(&device_count);
-    if (mr.flags.verbose)
-	printf("Working on GPU %i \n",device_count-1);
+    if (device_count==0){
+	mr.flags.no_gpu=1;
+    }
+    
+    if (mr.flags.verbose){
+	if (mr.flags.no_gpu==0)
+	    printf("Working on GPU %i \n",device_count-1);
+	else
+	    printf("Working on CPU\n");
+    }
     gpuErrchk(cudaSetDevice(device_count-1));
     cudaDeviceReset();
     
@@ -89,8 +101,12 @@ int main(int argc, char ** argv){
 	// Step 4: Rebin and filter
 	if (mr.flags.verbose)
 	    printf("Rebinning and filtering data...\n");
-	rebin_filter(&mr);
-    
+
+	if (mr.flags.no_gpu==1)
+	    rebin_filter_cpu(&mr);
+	else
+	    rebin_filter(&mr);
+	
 	/* --- Step 5 handled by functions in backproject.cu ---*/
 	// Step 5: Backproject
 	if (mr.flags.verbose)
