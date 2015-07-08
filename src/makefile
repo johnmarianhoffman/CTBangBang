@@ -7,7 +7,7 @@ IDIR_RECON=../include/
 IDIR_READER=/home/john/Public/reader_cuda/
 INCLUDES=-I$(IDIR_RECON) -I$(IDIR_READER)
 
-LIBS=$(IDIR_READER)read_raw_file.o -lm
+LIBS=$(IDIR_READER)read_raw_file.o -lfftw3 -lm 
 
 CFLAGS=$(INCLUDES) -L$(IDIR_READER) -g
 
@@ -17,7 +17,7 @@ OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 all: ../test
 
 ../test: $(OBJ)
-	(cd obj && $(NVCC) -L$(IDIR_READER) -o ../../test $(IDIR_READER)read_raw_file.o *.o)
+	(cd obj && $(NVCC) -L$(IDIR_READER) -o ../../test $(IDIR_READER)read_raw_file.o *.o -lfftw3)
 
 obj/main.o: main.cu $(IDIR_RECON)recon_structs.h $(IDIR_RECON)setup.h $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)backproject.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<
