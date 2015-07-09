@@ -52,9 +52,6 @@ int backproject(struct recon_metadata * mr){
 
     FILE * outfile;
 
-    //    int i=0;
-
-    //    while (i<(cg.n_proj_turn/2)){
     for (int i=0;i<cg.n_proj_turn/2;i+=I*2){
 	for (int k=0;k<n_half_turns;k++){
 	    cudaMemcpyToArrayAsync(cu_proj_1,0,k*I*cg.n_rows,&mr->ctd.rebin[(i+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream1);
