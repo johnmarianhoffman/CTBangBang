@@ -2,8 +2,11 @@
 **/*~
 **/\#*\#
 
-#Executables
+# Executables
 test
+
+# Random files
+.recon_wfbp.sh
 
 # Parameter files
 **/*.prm

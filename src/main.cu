@@ -103,7 +103,7 @@ int main(int argc, char ** argv){
 	if (mr.flags.verbose)
 	    printf("Rebinning and filtering data...\n");
 
-	if (mr.flags.no_gpu==0)
+	if (mr.flags.no_gpu==1)
 	    rebin_filter_cpu(&mr);
 	else
 	    rebin_filter(&mr);

@@ -75,6 +75,9 @@ void rebin_nffs_cpu(struct recon_metadata *mr){
 	}
     }
 
+    
+    printf("Filtering...\n");
+    
     // Load and run filter
     float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
     load_filter(h_filter,mr);
