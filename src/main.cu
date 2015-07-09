@@ -7,6 +7,7 @@
 #include <rebin_filter.h>
 #include <rebin_filter_cpu.h>
 #include <backproject.h>
+#include <backproject_cpu.h>
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -102,7 +103,7 @@ int main(int argc, char ** argv){
 	if (mr.flags.verbose)
 	    printf("Rebinning and filtering data...\n");
 
-	if (mr.flags.no_gpu==1)
+	if (mr.flags.no_gpu==0)
 	    rebin_filter_cpu(&mr);
 	else
 	    rebin_filter(&mr);
@@ -111,7 +112,11 @@ int main(int argc, char ** argv){
 	// Step 5: Backproject
 	if (mr.flags.verbose)
 	    printf("Backprojecting...\n");
-	backproject(&mr);
+
+	if (mr.flags.no_gpu==1)
+	    backproject_cpu(&mr);
+	else
+	    backproject(&mr);
 	
     }
     // Step 6: Save image data to disk (found in setup.cu)
