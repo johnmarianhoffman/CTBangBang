@@ -259,6 +259,5 @@ void filter_cpu(float * row, float * filter, int N){
     fftw_free(R);
     fftw_free(R_fourier);
     fftw_free(O);
-    fftw_free(O_fourier);
-    
+    fftw_free(O_fourier);    
 }
