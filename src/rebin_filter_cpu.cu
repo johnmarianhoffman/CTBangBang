@@ -104,7 +104,56 @@ void rebin_nffs_cpu(struct recon_metadata *mr){
 }
 
 void rebin_pffs_cpu(struct recon_metadata *mr){
+    // Set up some constants on the host 
+    struct ct_geom cg=mr->cg;
+    struct recon_info ri=mr->ri;
 
+    const double da=cg.src_to_det*cg.r_f*cg.fan_angle_increment/(4.0f*(cg.src_to_det-cg.r_f));
+
+    int n_proj=mr->ri.n_proj_pull/mr->ri.n_ffs;
+
+    // Allocate raw data arrays and intermediate output array
+    float * raw_1;
+    raw_1=(float*)malloc(cg.n_channels*cg.n_rows*n_proj*sizeof(float));
+    float * raw_2;
+    raw_2=(float*)malloc(cg.n_channels*cg.n_rows*n_proj*sizeof(float));
+    
+    float * rebin_t;
+    rebin_t=(float*)malloc(cg.n_channels_oversampled*cg.n_rows*n_proj*sizeof(float));
+
+    // Split raw data by focal spot
+    for (int i=0;i<n_proj;i++){
+	for (int j=0;j<cg.n_rows;j++){
+	    for (int k=0;k<cg.n_channels;k++){
+		int out_idx=cg.n_channels*cg.n_rows*i+cg.n_channels*j+k;
+		int in_idx_ffs1=cg.n_channels*cg.n_rows*(2*i)+cg.n_channels*j+k;
+		int in_idx_ffs2=cg.n_channels*cg.n_rows*(2*i+1)+cg.n_channels*j+k;
+
+		raw_1[out_idx]=mr->ctd.raw[in_dix_ffs1];
+		raw_2[out_idx]=mr->ctd.raw[in_dix_ffs2];
+	    }
+	}
+    }
+
+    // Rebin over angles
+    for (int i=0;i<n_proj;i++){
+	for (int j=0;j<cg.n_rows;j++){
+	    for (int k=0;k<cg.n_channels;k++){
+		int out_idx_1=i*cg.n_channels_oversampled*cg.n_rows+j*cg.n_channels_oversampled+k;
+		int out_idx_2=i*cg.n_channels_oversampled*cg.n_rows+j*cg.n_channels_oversampled+k+1;
+
+		float beta_1 = beta_rk(da,0,channel,0);
+		float alpha_idx_1=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,0)*d_cg.n_proj_turn/(2.0f*pi);
+
+		float beta_2 = beta_rk(-da,0,channel,0);
+		float alpha_idx_2=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(-da,0)*d_cg.n_proj_turn/(2.0f*pi);
+
+		output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,channel+0.5f);
+
+		
+	    }
+	}
+    }
 }
 
 void rebin_zffs_cpu(struct recon_metadata *mr){
