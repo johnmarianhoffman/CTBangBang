@@ -123,7 +123,6 @@ __global__ void p1_rebin(float* output,float da,int row){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
 
     float beta  = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
-    //float beta = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2)*d_cg.r_f/r_fr(da,0.0));
     float beta_idx=beta/(d_cg.fan_angle_increment/2.0f)+2.0f*d_cg.central_channel;
 
     output[out_idx]=tex2D(tex_a,proj+0.5f,beta_idx+0.5f); 
@@ -138,7 +137,6 @@ __global__ void p2_rebin(float* output,float da,int row){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
 
     float beta  = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
-    //float beta = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2)*d_cg.r_f/r_fr(-da,0.0));
     float beta_idx=beta/(d_cg.fan_angle_increment/2.0f)+2.0f*d_cg.central_channel;
 
     output[out_idx]=tex2D(tex_b,proj+0.5f,beta_idx+0.5f);     
