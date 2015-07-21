@@ -169,6 +169,9 @@ void rebin_pffs_cpu(struct recon_metadata *mr){
     dim.idx2=cg.n_rows;
     dim.idx3=n_proj;
 
+    float * beta_lookup;
+    beta_lookup=(float*)malloc(cg.n_channels_oversampled*sizeof(float));
+    
     // Rebin over angles
     for (int proj=0;proj<n_proj;proj++){
 	for (int row=0;row<cg.n_rows;row++){
@@ -179,10 +182,12 @@ void rebin_pffs_cpu(struct recon_metadata *mr){
 
 		// +da
 		float beta_1 = beta_rk(da,0,channel,0,cg);
+		beta_lookup[2*channel]=beta_1;
 		float alpha_idx_1=ri.n_ffs*(proj)-beta_1*cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(da,0,cg)*cg.n_proj_ffs/(2.0f*pi);
 		
 		// -da
 		float beta_2 = beta_rk(-da,0,channel,0,cg);
+		beta_lookup[2*channel+1]=beta_2;
 		float alpha_idx_2=ri.n_ffs*(proj)-beta_2*cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(-da,0,cg)*cg.n_proj_ffs/(2.0f*pi);
 
 		// Rescale alpha indices to properly index the raw arrays as 0, 1, 2, 3, ...
@@ -211,7 +216,8 @@ void rebin_pffs_cpu(struct recon_metadata *mr){
 	    for (int channel=0;channel<cg.n_channels_oversampled;channel++){
 		int out_idx=cg.n_channels_oversampled*cg.n_rows*proj+cg.n_channels_oversampled*row+channel;
 		float beta  = asin((channel-2*cg.central_channel)*(cg.fan_angle_increment/2));
-		float beta_idx=beta/(cg.fan_angle_increment/2.0f)+2.0f*cg.central_channel;
+		//float beta_idx=beta/(cg.fan_angle_increment/2.0f)+2.0f*cg.central_channel;
+		float beta_idx=get_beta_idx(beta,beta_lookup,cg.n_channels_oversampled);
 		h_output[out_idx]=interp3(rebin_t,dim,beta_idx,row,proj);
 	    }
 	}

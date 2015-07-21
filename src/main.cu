@@ -65,13 +65,15 @@ int main(int argc, char ** argv){
     }
     
     if (mr.flags.verbose){
-	if (mr.flags.no_gpu==0)
+	if (mr.flags.no_gpu==0){
 	    printf("Working on GPU %i \n",device_count-1);
-	else
+	    gpuErrchk(cudaSetDevice(device_count-1));
+	    cudaDeviceReset();
+	}
+	else{
 	    printf("Working on CPU\n");
+	}
     }
-    gpuErrchk(cudaSetDevice(device_count-1));
-    cudaDeviceReset();
     
     /* --- Step 1-3 handled by functions in setup.cu --- */
     // Step 1: Parse input file
