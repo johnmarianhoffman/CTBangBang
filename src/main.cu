@@ -115,7 +115,7 @@ int main(int argc, char ** argv){
 	if (mr.flags.verbose)
 	    printf("Backprojecting...\n");
 
-	if (mr.flags.no_gpu==1)
+	if (mr.flags.no_gpu==0)
 	    backproject_cpu(&mr);
 	else
 	    backproject(&mr);
