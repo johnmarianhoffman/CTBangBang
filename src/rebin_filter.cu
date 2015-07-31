@@ -44,8 +44,6 @@ int rebin_filter(struct recon_metadata * mr){
 }
 
 void rebin_nffs(struct recon_metadata *mr){
-    cudaSetDevice(1);
-    cudaDeviceReset();
 
     cudaStream_t stream1,stream2;
     cudaStreamCreate(&stream1);
@@ -66,12 +64,13 @@ void rebin_nffs(struct recon_metadata *mr){
     cudaMemcpyToSymbol(d_ri,&ri,sizeof(struct recon_info),0,cudaMemcpyHostToDevice);
     
     // Ready our filter
-    float * h_filter=(float*)calloc(cg.n_channels_oversampled,sizeof(float));
-    float * d_filter;
-    cudaMalloc(&d_filter,cg.n_channels_oversampled*sizeof(float));
+    float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
+    //float * d_filter;
+    //cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
-    
+    //cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),0,cudaMemcpyHostToDevice);
+
     // Configure textures (see rebin_filter.cuh)
     tex_a.addressMode[0] = cudaAddressModeClamp;
     tex_a.addressMode[1] = cudaAddressModeClamp;
@@ -102,9 +101,13 @@ void rebin_nffs(struct recon_metadata *mr){
     dim3 rebin_threads(32,32);
     dim3 rebin_blocks(cg.n_channels_oversampled/rebin_threads.x,mr->ri.n_proj_pull/rebin_threads.y);
 
-    dim3 filter_threads(2*128,1);
-    dim3 filter_blocks(mr->ri.n_proj_pull/mr->ri.n_ffs/filter_threads.x,1);
-
+    // Determine the number of threads needed based on the #define N_PIX (found in rebin_filter.cuh)
+    int n_threads=cg.n_channels_oversampled/N_PIX;
+    
+    dim3 filter_threads(n_threads,1,1);
+    dim3 filter_blocks(1,mr->ri.n_proj_pull/mr->ri.n_ffs,1);
+    unsigned int shared_size=cg.n_channels_oversampled*sizeof(float)+2*cg.n_channels_oversampled*sizeof(float); // row+filter;
+    
     // Reshape raw data into row sheets
     float * sheets=(float*)calloc(cg.n_channels*cg.n_rows_raw*mr->ri.n_proj_pull,sizeof(float));
     for (int i=0;i<cg.n_rows_raw;i++){
@@ -122,14 +125,14 @@ void rebin_nffs(struct recon_metadata *mr){
 
 	// Launch Kernel A
 	n1_rebin<<<rebin_blocks,rebin_threads,0,stream1>>>(d_output,i);
-	filter<<<filter_blocks,filter_threads,0,stream1>>>(d_output,d_filter,i);
+	filter<<<filter_blocks,filter_threads,shared_size,stream1>>>(d_output,i);
 	    
 	//Begin the second transfer while 1st kernel executes
 	cudaMemcpyToArrayAsync(cu_raw_2,0,0,&sheets[(i+1)*proj_array_size],proj_array_size*sizeof(float),cudaMemcpyHostToDevice,stream2);
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	n2_rebin<<<rebin_blocks,rebin_threads,0,stream2>>>(d_output,i+1);
-	filter<<<filter_blocks,filter_threads,0,stream2>>>(d_output,d_filter,i+1);
+	filter<<<filter_blocks,filter_threads,shared_size,stream2>>>(d_output,i+1);
     }
 	
     cudaFreeArray(cu_raw_1);
@@ -169,8 +172,6 @@ void rebin_nffs(struct recon_metadata *mr){
 }
 
 void rebin_pffs(struct recon_metadata *mr){
-    cudaSetDevice(1);
-    cudaDeviceReset();
 
     // Set up some constants on the host 
     struct ct_geom cg=mr->cg;
@@ -212,6 +213,18 @@ void rebin_pffs(struct recon_metadata *mr){
 	i+=2*proj_per_call;
     }
 
+    if (mr->flags.testing){
+	float * h_fs=(float*)calloc(mr->ri.n_proj_pull*cg.n_rows_raw*cg.n_channels,sizeof(float));
+	cudaMemcpy(h_fs,d_fs,mr->ri.n_proj_pull*cg.n_rows_raw*cg.n_channels*sizeof(float),cudaMemcpyDeviceToHost);
+	char fullpath[4096+255];
+	strcpy(fullpath,mr->homedir);
+	strcat(fullpath,"/Desktop/h_fs.ct_test");
+	FILE * outfile=fopen(fullpath,"w");
+	fwrite(h_fs,sizeof(float),mr->ri.n_proj_pull*cg.n_rows_raw*cg.n_channels,outfile);
+	fclose(outfile);
+	free(h_fs);
+    }
+    
     cudaFree(d_raw_1);
     cudaFree(d_raw_2);
 
@@ -251,7 +264,7 @@ void rebin_pffs(struct recon_metadata *mr){
 
 	p1_rebin_t<<<blocks_t_rebin,threads_t_rebin,0,stream1>>>(d_rebin_t,da,i);
 	p2_rebin_t<<<blocks_t_rebin,threads_t_rebin,0,stream2>>>(d_rebin_t,da,i);
-    }
+     }
    
     cudaFree(d_fs);
     cudaFreeArray(cu_raw_1);
@@ -276,19 +289,24 @@ void rebin_pffs(struct recon_metadata *mr){
     cudaMalloc(&d_output,cg.n_channels_oversampled*cg.n_rows*ri.n_proj_pull/ri.n_ffs*sizeof(float));
 
     // Ready our filter
-    float * h_filter=(float*)calloc(cg.n_channels_oversampled,sizeof(float));
-    float * d_filter;
-    cudaMalloc(&d_filter,cg.n_channels_oversampled*sizeof(float));
+    float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
+    //float * d_filter;
+    //cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
-    
+    //cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),0,cudaMemcpyHostToDevice);
+	
     int sheet_size=cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs;
 
     dim3 threads_rebin(32,32);
     dim3 blocks_rebin(cg.n_channels_oversampled/threads_rebin.x,ri.n_proj_pull/ri.n_ffs/threads_rebin.y);
 
-    dim3 threads_filter(2*64,1);
-    dim3 blocks_filter(mr->ri.n_proj_pull/mr->ri.n_ffs/threads_filter.x,1);
+    // Determine the number of threads needed based on the #define N_PIX (found in rebin_filter.cuh)
+    int n_threads=cg.n_channels_oversampled/N_PIX;
+    
+    dim3 threads_filter(n_threads,1,1);
+    dim3 blocks_filter(1,mr->ri.n_proj_pull/mr->ri.n_ffs,1);
+    unsigned int shared_size=cg.n_channels_oversampled*sizeof(float)+2*cg.n_channels_oversampled*sizeof(float); // row+filter;
 
     for (int i=0;i<cg.n_rows;i+=2){
 
@@ -299,10 +317,10 @@ void rebin_pffs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	p1_rebin<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,da,i);
-	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,d_filter,i);
+	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,i);
 	    
 	p2_rebin<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,da,i+1);
-	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,d_filter,i+1);
+	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,i+1);
 
     }
 
@@ -345,8 +363,6 @@ void rebin_pffs(struct recon_metadata *mr){
 }
 void rebin_zffs(struct recon_metadata *mr){
 
-    cudaSetDevice(1);
-    cudaDeviceReset();
 
     // Two GPU parts to this rebin:
     // (1) Split arrays and reshape into sheets
@@ -480,17 +496,22 @@ void rebin_zffs(struct recon_metadata *mr){
     }
 
     // Ready our filter
-    float * h_filter=(float*)calloc(cg.n_channels_oversampled,sizeof(float));
-    float * d_filter;
-    cudaMalloc(&d_filter,cg.n_channels_oversampled*sizeof(float));
+    float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
+    //float * d_filter;
+    //cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    cudaMemcpy(d_filter,h_filter,cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    //cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),0,cudaMemcpyHostToDevice);
     
     dim3 threads_rebin(32,32);
     dim3 blocks_rebin(cg.n_channels_oversampled/threads_rebin.x,ri.n_proj_pull/ri.n_ffs/threads_rebin.y);
 
-    dim3 threads_filter(2*64,1);
-    dim3 blocks_filter(mr->ri.n_proj_pull/mr->ri.n_ffs/threads_filter.x,1);
+    // Determine the number of threads needed based on the #define N_PIX (found in rebin_filter.cuh)
+    int n_threads=cg.n_channels_oversampled/N_PIX;
+    
+    dim3 threads_filter(n_threads,1,1);
+    dim3 blocks_filter(1,mr->ri.n_proj_pull/mr->ri.n_ffs,1);
+    unsigned int shared_size=cg.n_channels_oversampled*sizeof(float)+2*cg.n_channels_oversampled*sizeof(float); // row+filter;
     
     for (int i=0;i<cg.n_rows_raw;i++){
 	cudaMemcpyToArrayAsync(cu_raw_1,0,0,&d_fs[cg.n_channels*ri.n_proj_pull/ri.n_ffs*i],cg.n_channels*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream1);
@@ -500,10 +521,10 @@ void rebin_zffs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	z1_rebin<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,d_filter,2*i);
+	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,2*i);
 	
 	z2_rebin<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,d_filter,2*i+1);
+	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
     }
 
     float * h_output;
@@ -544,16 +565,14 @@ void rebin_zffs(struct recon_metadata *mr){
     
 }
 void rebin_affs(struct recon_metadata *mr){
-    cudaSetDevice(1);
-    cudaDeviceReset();
 
     // Set up some constants on the host 
     struct ct_geom cg=mr->cg;
     struct recon_info ri=mr->ri;
     struct recon_params rp=mr->rp;
 
-    const float da=cg.src_to_det*cg.r_f*cg.fan_angle_increment/(4.0f*(cg.src_to_det-cg.r_f));
-    const float dr=cg.src_to_det*rp.coll_slicewidth/(4.0*(cg.src_to_det-cg.r_f)*tan(cg.anode_angle));
+    const double da=cg.src_to_det*cg.r_f*cg.fan_angle_increment/(4.0f*(cg.src_to_det-cg.r_f));
+    const double dr=cg.src_to_det*rp.coll_slicewidth/(4.0*(cg.src_to_det-cg.r_f)*tan(cg.anode_angle));
     
     // Set up some constants and infrastructure on the GPU
     cudaStream_t stream1,stream2,stream3,stream4;
@@ -780,19 +799,32 @@ void rebin_affs(struct recon_metadata *mr){
 	free(h_b_lookup_2);
     }
 
-    
     // Ready our filter
-    float * h_filter=(float*)calloc(cg.n_channels_oversampled,sizeof(float));
-    float * d_filter;
-    gpuErrchk(cudaMalloc(&d_filter,cg.n_channels_oversampled*sizeof(float)));
+    float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
+    //float * d_filter;
+    //cudaMalloc(&d_filter,2*cg.n_channels_oversampled*sizeof(float));
     load_filter(h_filter,mr);
-    gpuErrchk(cudaMemcpy(d_filter,h_filter,cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice));
+    //cudaMemcpy(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_filter,h_filter,2*cg.n_channels_oversampled*sizeof(float),0,cudaMemcpyHostToDevice);
+    
+    if (mr->flags.testing){
+	char fullpath[4096+255];
+	strcpy(fullpath,mr->homedir);
+	strcat(fullpath,"/Desktop/filter.ct_test");
+	FILE * outfile=fopen(fullpath,"w");
+	fwrite(h_filter,sizeof(float),2*cg.n_channels_oversampled,outfile);
+	fclose(outfile);
+    }
     
     dim3 threads_rebin(32,32);
     dim3 blocks_rebin(cg.n_channels_oversampled/threads_rebin.x,ri.n_proj_pull/ri.n_ffs/threads_rebin.y);
 
-    dim3 threads_filter(2*64,1);
-    dim3 blocks_filter(mr->ri.n_proj_pull/mr->ri.n_ffs/threads_filter.x,1);
+    // Determine the number of threads needed based on the #define N_PIX (found in rebin_filter.cuh)
+    int n_threads=cg.n_channels_oversampled/N_PIX;
+    
+    dim3 threads_filter(n_threads,1,1);
+    dim3 blocks_filter(1,mr->ri.n_proj_pull/mr->ri.n_ffs,1);
+    unsigned int shared_size=cg.n_channels_oversampled*sizeof(float)+2*cg.n_channels_oversampled*sizeof(float); // row+filter;
     
     for (int i=0;i<cg.n_rows_raw;i++){
 	cudaMemcpyToArrayAsync(cu_raw_1,0,0,&d_rebin_t1[cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs*i],cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream1);
@@ -802,11 +834,10 @@ void rebin_affs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	a1_rebin_b<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream1>>>(d_output,d_filter,2*i);
+	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,2*i);
 	
 	a2_rebin_b<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
-	filter<<<blocks_filter,threads_filter,0,stream2>>>(d_output,d_filter,2*i+1);
-
+	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
     }
 
     float * h_output;
@@ -835,6 +866,9 @@ void rebin_affs(struct recon_metadata *mr){
 
 
     free(h_output);
+
+    cudaFree(d_rebin_t1);
+    cudaFree(d_rebin_t2);
     
     cudaFreeArray(cu_raw_1);
     cudaFreeArray(cu_raw_2);
@@ -849,8 +883,6 @@ void rebin_affs(struct recon_metadata *mr){
     cudaStreamDestroy(stream3);
     cudaStreamDestroy(stream4);
 }
-
-
 
 void copy_sheet(float * sheetptr, int row,struct recon_metadata * mr,struct ct_geom cg){
     for (int j=0;j<cg.n_channels;j++){
@@ -874,6 +906,15 @@ void load_filter(float * f_array,struct recon_metadata * mr){
     case -1:{
 	sprintf(fullpath,"%s/resources/filters/f_%i_exp.txt",mr->install_dir,cg.n_channels);
 	break;}
+    case 1:{
+	sprintf(fullpath,"%s/resources/filters/f_%i_smooth.txt",mr->install_dir,cg.n_channels);
+	break;}
+    case 2:{
+	sprintf(fullpath,"%s/resources/filters/f_%i_medium.txt",mr->install_dir,cg.n_channels);
+	break;}
+    case 3:{
+	sprintf(fullpath,"%s/resources/filters/f_%i_sharp.txt",mr->install_dir,cg.n_channels);
+	break;}
     default:{
 	sprintf(fullpath,"%s/resources/filters/f_%i_b%i.txt",mr->install_dir,cg.n_channels,rp.recon_kernel);
 	break;}
@@ -881,6 +922,6 @@ void load_filter(float * f_array,struct recon_metadata * mr){
 
     filter_file=fopen(fullpath,"r");
 
-    fread(f_array,sizeof(float),cg.n_channels_oversampled,filter_file);
+    fread(f_array,sizeof(float),2*cg.n_channels_oversampled,filter_file);
     fclose(filter_file);
 }

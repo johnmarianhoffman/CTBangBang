@@ -8,9 +8,6 @@
 #define By 32
 
 int backproject(struct recon_metadata * mr){
-
-    cudaSetDevice(1);
-    cudaDeviceReset();
     
     struct ct_geom cg=mr->cg;
 
@@ -55,32 +52,27 @@ int backproject(struct recon_metadata * mr){
 
     FILE * outfile;
 
-    int i=0;
-    //while (i<(mr->ri.n_proj_pull-2*cg.add_projections)){
-    while (i<cg.n_proj_turn/2){
+    for (int i=0;i<cg.n_proj_turn/2;i+=I*2){
 	for (int k=0;k<n_half_turns;k++){
 	    cudaMemcpyToArrayAsync(cu_proj_1,0,k*I*cg.n_rows,&mr->ctd.rebin[(i+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream1);
 	}
 	cudaBindTextureToArray(tex_a,cu_proj_1,channelDesc);
 
 	for (int k=0;k<n_half_turns;k++){
-	    cudaMemcpyToArrayAsync(cu_proj_2,0,k*I*cg.n_rows,&mr->ctd.rebin[(i+I+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream1);
+	    cudaMemcpyToArrayAsync(cu_proj_2,0,k*I*cg.n_rows,&mr->ctd.rebin[(i+I+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream2);
 	}
-
-	//cudaMemcpyToArrayAsync(cu_proj_2,0,0,&mr->ctd.rebin[(i+I)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream2);
 	cudaBindTextureToArray(tex_b,cu_proj_2,channelDesc);
 	
 	// Kernel call 1
-	bp_a<<<blocks,threads,0,stream1>>>(d_output,i,tube_start,n_half_turns);
+	bp_a<<<blocks,threads,0,stream1>>>(d_output,i,tube_start+pi/4.0f,n_half_turns);
 
- 	// Kernel call 2
-	bp_b<<<blocks,threads,0,stream2>>>(d_output,i+I,tube_start,n_half_turns);
-	
-	i+=I*2;
+	// Kernel call 2
+	bp_b<<<blocks,threads,0,stream2>>>(d_output,i+I,tube_start+pi/4.0f,n_half_turns);
 	
     }
 
-    cudaMemcpy(mr->ctd.image,d_output,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon*sizeof(float),cudaMemcpyDeviceToHost);
+    long block_offset=(mr->ri.cb.block_idx-1)*mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block;
+    cudaMemcpy(&mr->ctd.image[block_offset],d_output,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block*sizeof(float),cudaMemcpyDeviceToHost);
 
     outfile=fopen("/home/john/Desktop/image_data.txt","w");
     fwrite(mr->ctd.image,sizeof(float),mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon,outfile);

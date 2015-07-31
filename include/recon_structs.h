@@ -24,10 +24,20 @@ struct recon_params{
     unsigned int ny;
 };
 
+struct block_info{
+    int block_idx;
+    float block_slice_start;
+    float block_slice_end;
+    int idx_block_slice_start;
+    int idx_block_slice_end;
+};
+
 struct recon_info{
     int n_ffs;
     int n_slices_requested;
     int n_slices_recon;
+    int n_slices_block;
+    int n_blocks;
     int idx_slice_start;
     int idx_slice_end; 
     float recon_start_pos;
@@ -35,6 +45,7 @@ struct recon_info{
     int idx_pull_start;
     int idx_pull_end;
     int n_proj_pull;
+    struct block_info cb;
 };
     
 struct ct_data{
@@ -66,6 +77,7 @@ struct ct_geom{
 struct flags{
     int testing;
     int verbose;
+    int no_gpu;
 };
     
 struct recon_metadata {
