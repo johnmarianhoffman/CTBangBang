@@ -64,10 +64,10 @@ int backproject(struct recon_metadata * mr){
 	cudaBindTextureToArray(tex_b,cu_proj_2,channelDesc);
 	
 	// Kernel call 1
-	bp_a<<<blocks,threads,0,stream1>>>(d_output,i,tube_start+pi/4.0f,n_half_turns);
+	bp_a<<<blocks,threads,0,stream1>>>(d_output,i,tube_start,n_half_turns);
 
 	// Kernel call 2
-	bp_b<<<blocks,threads,0,stream2>>>(d_output,i+I,tube_start+pi/4.0f,n_half_turns);
+	bp_b<<<blocks,threads,0,stream2>>>(d_output,i+I,tube_start,n_half_turns);
 	
     }
 
