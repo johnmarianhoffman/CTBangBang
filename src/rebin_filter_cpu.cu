@@ -169,6 +169,9 @@ void rebin_pffs_cpu(struct recon_metadata *mr){
     dim.idx2=cg.n_rows;
     dim.idx3=n_proj;
 
+    float * beta_lookup;
+    beta_lookup=(float*)malloc(cg.n_channels_oversampled*sizeof(float));
+    
     // Rebin over angles
     for (int proj=0;proj<n_proj;proj++){
 	for (int row=0;row<cg.n_rows;row++){
@@ -178,11 +181,13 @@ void rebin_pffs_cpu(struct recon_metadata *mr){
 		int out_idx_2=proj*cg.n_channels_oversampled*cg.n_rows+row*cg.n_channels_oversampled+2*channel+1;
 
 		// +da
-		float beta_1 = beta_rk(da,0,channel,0,cg);
+		float beta_1= beta_rk(da,0,channel,0,cg);
+		beta_lookup[2*channel]=beta_1;
 		float alpha_idx_1=ri.n_ffs*(proj)-beta_1*cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(da,0,cg)*cg.n_proj_ffs/(2.0f*pi);
 		
 		// -da
 		float beta_2 = beta_rk(-da,0,channel,0,cg);
+		beta_lookup[2*channel+1]=beta_2;
 		float alpha_idx_2=ri.n_ffs*(proj)-beta_2*cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(-da,0,cg)*cg.n_proj_ffs/(2.0f*pi);
 
 		// Rescale alpha indices to properly index the raw arrays as 0, 1, 2, 3, ...
@@ -195,6 +200,11 @@ void rebin_pffs_cpu(struct recon_metadata *mr){
 	}
     }
 
+    FILE * o;
+    o=fopen("/home/john/Desktop/beta_lookup_pffs.txt","w");
+    fwrite(beta_lookup,sizeof(float),cg.n_channels_oversampled,o);
+    fclose(o);
+    
     // Free any arrays we no longer need, allocate final output array
     free(raw_1);
     free(raw_2);
@@ -209,9 +219,10 @@ void rebin_pffs_cpu(struct recon_metadata *mr){
     for (int proj=0;proj<n_proj;proj++){
 	for (int row=0;row<cg.n_rows;row++){
 	    for (int channel=0;channel<cg.n_channels_oversampled;channel++){
-		int out_idx=cg.n_channels_oversampled*cg.n_rows*proj+cg.n_channels_oversampled*row+channel;
 		float beta  = asin((channel-2*cg.central_channel)*(cg.fan_angle_increment/2));
-		float beta_idx=beta/(cg.fan_angle_increment/2.0f)+2.0f*cg.central_channel;
+		//float beta_idx=beta/(cg.fan_angle_increment/2.0f)+2.0f*cg.central_channel;
+		float beta_idx=get_beta_idx(beta,beta_lookup,cg.n_channels_oversampled);
+		int out_idx=cg.n_channels_oversampled*cg.n_rows*proj+cg.n_channels_oversampled*row+channel;
 		h_output[out_idx]=interp3(rebin_t,dim,beta_idx,row,proj);
 	    }
 	}
@@ -440,6 +451,13 @@ void rebin_affs_cpu(struct recon_metadata *mr){
     dim.idx2=cg.n_rows_raw;
     dim.idx3=n_proj;
 
+    // Allocate beta lookup tables
+    // Allocate and compute beta lookup tables
+    float * beta_lookup_1;
+    float * beta_lookup_2;
+    beta_lookup_1=(float*)malloc(sizeof(float)*cg.n_channels_oversampled);
+    beta_lookup_2=(float*)malloc(sizeof(float)*cg.n_channels_oversampled);
+
     // Rebin projections
     for (int proj=0;proj<n_proj;proj++){
 	for (int row=0;row<cg.n_rows_raw;row++){
@@ -457,6 +475,8 @@ void rebin_affs_cpu(struct recon_metadata *mr){
 		// -da
 		float beta_2 = beta_rk(-da,-dr,channel,0,cg);
 		float alpha_idx_2=ri.n_ffs*(proj)-beta_2*cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(-da,-dr,cg)*cg.n_proj_ffs/(2.0f*pi);
+		beta_lookup_1[2*channel]=beta_1;
+		beta_lookup_1[2*channel+1]=beta_2;		
 		// <<<<< -dr
 
 		// +dr >>>>>
@@ -466,6 +486,8 @@ void rebin_affs_cpu(struct recon_metadata *mr){
 		// -da
 		float beta_4 = beta_rk(-da,dr,channel,0,cg);
 		float alpha_idx_4=ri.n_ffs*(proj)-beta_2*cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(-da,dr,cg)*cg.n_proj_ffs/(2.0f*pi);
+		beta_lookup_2[2*channel]=beta_3;
+		beta_lookup_2[2*channel+1]=beta_4;
 		// <<<<< +dr
 
 		// Rescale alpha indices to properly index the raw arrays as 0, 1, 2, 3, ...
@@ -497,16 +519,6 @@ void rebin_affs_cpu(struct recon_metadata *mr){
 
     // Update the interpolation array dimensions since new array has twice as many channels
     dim.idx1*=2;
-
-    // Allocate and compute beta lookup tables
-    float * beta_lookup_1;
-    float * beta_lookup_2;
-    beta_lookup_1=(float*)malloc(cg.n_channels_oversampled*sizeof(float));
-    beta_lookup_2=(float*)malloc(cg.n_channels_oversampled*sizeof(float));
-    for (int i=0;i<cg.n_channels_oversampled;i++){
-	beta_lookup_1[i]=beta_rk(0,-dr,i,1,cg);
-	beta_lookup_2[i]=beta_rk(0, dr,i,1,cg);
-    }
 
     // Rebin channels
     for (int proj=0;proj<n_proj;proj++){

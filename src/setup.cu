@@ -170,7 +170,7 @@ struct ct_geom configure_ct_geom(struct recon_params rp){
 	cg.anode_angle=7.0f*pi/180.0f; 
 	cg.fan_angle_increment=0.067864f*pi/180.0f; 
 	cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f); 
-	cg.central_channel=366.25f; 
+	cg.central_channel=366.25f;
 
 	// Size and setup of the detector helix 
 	cg.n_proj_turn=1152; 
@@ -211,8 +211,9 @@ struct ct_geom configure_ct_geom(struct recon_params rp){
 
     cg.acq_fov=rp.acq_fov; 
 
-    if (rp.phi_ffs==1){ 
-	cg.central_channel+=0.375f; 
+    if (rp.phi_ffs==1){
+	cg.central_channel=floor(cg.central_channel)+0.375f;
+	//cg.central_channel+=0.375f; 
     }
     
 
