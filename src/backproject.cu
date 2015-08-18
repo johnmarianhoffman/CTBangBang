@@ -1,3 +1,23 @@
+/* CTBangBang is GPU and CPU CT reconstruction Software */
+/* Copyright (C) 2015  John Hoffman */
+
+/* This program is free software; you can redistribute it and/or */
+/* modify it under the terms of the GNU General Public License */
+/* as published by the Free Software Foundation; either version 2 */
+/* of the License, or (at your option) any later version. */
+
+/* This program is distributed in the hope that it will be useful, */
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of */
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the */
+/* GNU General Public License for more details. */
+
+/* You should have received a copy of the GNU General Public License */
+/* along with this program; if not, write to the Free Software */
+/* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. */
+
+/* Questions and comments should be directed to */
+/* jmhoffman@mednet.ucla.edu with "CTBANGBANG" in the subject line*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <recon_structs.h>
@@ -64,10 +84,10 @@ int backproject(struct recon_metadata * mr){
 	cudaBindTextureToArray(tex_b,cu_proj_2,channelDesc);
 	
 	// Kernel call 1
-	bp_a<<<blocks,threads,0,stream1>>>(d_output,i,tube_start+pi/4.0f,n_half_turns);
+	bp_a<<<blocks,threads,0,stream1>>>(d_output,i,tube_start,n_half_turns);
 
 	// Kernel call 2
-	bp_b<<<blocks,threads,0,stream2>>>(d_output,i+I,tube_start+pi/4.0f,n_half_turns);
+	bp_b<<<blocks,threads,0,stream2>>>(d_output,i+I,tube_start,n_half_turns);
 	
     }
 

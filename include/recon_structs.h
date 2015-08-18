@@ -1,3 +1,23 @@
+/* CTBangBang is GPU and CPU CT reconstruction Software */
+/* Copyright (C) 2015  John Hoffman */
+
+/* This program is free software; you can redistribute it and/or */
+/* modify it under the terms of the GNU General Public License */
+/* as published by the Free Software Foundation; either version 2 */
+/* of the License, or (at your option) any later version. */
+
+/* This program is distributed in the hope that it will be useful, */
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of */
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the */
+/* GNU General Public License for more details. */
+
+/* You should have received a copy of the GNU General Public License */
+/* along with this program; if not, write to the Free Software */
+/* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. */
+
+/* Questions and comments should be directed to */
+/* jmhoffman@mednet.ucla.edu with "CTBANGBANG" in the subject line*/
+
 #ifndef recon_structs_h
 #define recon_structs_h
 
@@ -9,6 +29,7 @@ struct recon_params{
     float start_pos;
     float end_pos;
     float slice_thickness;
+    float pitch_value;
     float acq_fov;
     float recon_fov;
     int recon_kernel;
@@ -17,8 +38,9 @@ struct recon_params{
     int n_readings;
     int z_ffs;
     int phi_ffs;
-    int scanner;
+    char scanner[4096+255];
     int file_type;
+    int file_subtype;
     int raw_data_offset;
     unsigned int nx;
     unsigned int ny;
@@ -72,12 +94,16 @@ struct ct_geom{
     int projection_offset;
     int add_projections;
     int add_projections_ffs;
+    int reverse_row_interleave;
+    int reverse_channel_interleave;
 };
 
 struct flags{
     int testing;
     int verbose;
     int no_gpu;
+    int set_device;
+    int device_number;
 };
     
 struct recon_metadata {

@@ -1,3 +1,23 @@
+/* CTBangBang is GPU and CPU CT reconstruction Software */
+/* Copyright (C) 2015  John Hoffman */
+
+/* This program is free software; you can redistribute it and/or */
+/* modify it under the terms of the GNU General Public License */
+/* as published by the Free Software Foundation; either version 2 */
+/* of the License, or (at your option) any later version. */
+
+/* This program is distributed in the hope that it will be useful, */
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of */
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the */
+/* GNU General Public License for more details. */
+
+/* You should have received a copy of the GNU General Public License */
+/* along with this program; if not, write to the Free Software */
+/* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. */
+
+/* Questions and comments should be directed to */
+/* jmhoffman@mednet.ucla.edu with "CTBANGBANG" in the subject line*/
+
 #include <recon_structs.h>
 
 #define pi 3.1415926535897f
@@ -85,7 +105,7 @@ __global__ void p_reshape(float * raw, float * out,int offset){
     out[idx_out_offset]=raw[d_cg.n_channels*d_cg.n_rows_raw*(2*proj+1)+d_cg.n_channels*row+channel];
 }
 
-__global__ void p1_rebin_t(float * output,float da,int row){
+__global__ void p1_rebin_t(float * output,float da,int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -95,12 +115,14 @@ __global__ void p1_rebin_t(float * output,float da,int row){
     da=da;
     
     float beta = beta_rk(da,0,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,0)*d_cg.n_proj_turn/(2.0f*pi);
+    beta_lookup[2*channel]=beta;
+    float alpha_idx=d_ri.n_ffs*proj-beta*d_cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(da,0)*d_cg.n_proj_ffs/(2.0f*pi);
+    alpha_idx=alpha_idx/2.0f;
     
     output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void p2_rebin_t(float * output,float da,int row){
+__global__ void p2_rebin_t(float * output,float da,int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -110,12 +132,14 @@ __global__ void p2_rebin_t(float * output,float da,int row){
     da=-da;
     
     float beta = beta_rk(da,0,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,0)*d_cg.n_proj_turn/(2.0f*pi);
+    beta_lookup[2*channel+1]=beta;
+    float alpha_idx=d_ri.n_ffs*proj-beta*d_cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(da,0)*d_cg.n_proj_ffs/(2.0f*pi);
+    alpha_idx=(alpha_idx-1.0f)/2.0f;
     
     output[out_idx]=tex2D(tex_b,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void p1_rebin(float* output,float da,int row){
+__global__ void p1_rebin(float* output,float da,int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -123,13 +147,12 @@ __global__ void p1_rebin(float* output,float da,int row){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
 
     float beta  = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
-    float beta_idx=beta/(d_cg.fan_angle_increment/2.0f)+2.0f*d_cg.central_channel;
-
+    float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
+    
     output[out_idx]=tex2D(tex_a,proj+0.5f,beta_idx+0.5f); 
-	
 }
 
-__global__ void p2_rebin(float* output,float da,int row){
+__global__ void p2_rebin(float* output,float da,int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -137,8 +160,8 @@ __global__ void p2_rebin(float* output,float da,int row){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
 
     float beta  = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
-    float beta_idx=beta/(d_cg.fan_angle_increment/2.0f)+2.0f*d_cg.central_channel;
-
+    float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
+    
     output[out_idx]=tex2D(tex_b,proj+0.5f,beta_idx+0.5f);     
 }
 
@@ -163,12 +186,20 @@ __global__ void z1_rebin(float * output,float * beta_lookup,float dr,int row){
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
     float beta=asin((channel-2.0f*d_cg.central_channel)*(d_cg.fan_angle_increment/2.0f)*d_cg.r_f/r_fr(0.0f,-dr));
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=d_ri.n_ffs*proj-beta*d_cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(0.0f,-dr)*d_cg.n_proj_ffs/(2.0f*pi);
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels);
+
+    alpha_idx=alpha_idx/2.0f;
     
     __syncthreads();
 
-    output[(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*2*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj]=tex2D(tex_a,alpha_idx+0.5f,beta_idx+0.5f);
+    int out_idx;
+    if (!d_cg.reverse_row_interleave)
+	out_idx=(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*2*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
+    else
+	out_idx=(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*(2*row+1)+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
+    
+    output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,beta_idx+0.5f);
 }
 
 __global__ void z2_rebin(float * output,float * beta_lookup,float dr,int row){
@@ -177,12 +208,20 @@ __global__ void z2_rebin(float * output,float * beta_lookup,float dr,int row){
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
     float beta=asin((channel-2.0f*d_cg.central_channel)*(d_cg.fan_angle_increment/2.0f)*d_cg.r_f/r_fr(0.0f,dr));
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2*pi);
+    float alpha_idx=d_ri.n_ffs*proj-beta*d_cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(0.0f,dr)*d_cg.n_proj_ffs/(2.0f*pi);
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels);
+
+    alpha_idx=(alpha_idx-1.0f)/2.0f;
     
     __syncthreads();
 
-    output[(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*(2*row+1)+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj]=tex2D(tex_b,alpha_idx+0.5f,beta_idx+0.5f);
+    int out_idx;
+    if (!d_cg.reverse_row_interleave)
+	out_idx=(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*(2*row+1)+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
+    else
+	out_idx=(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*2*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;    
+    
+    output[out_idx]=tex2D(tex_b,alpha_idx+0.5f,beta_idx+0.5f);
 }
 
 /* --- Z only flying focal spot rebinning kernels ---*/
@@ -202,7 +241,7 @@ __global__ void a_reshape(float * raw, float * out,int offset){
     out[idx_out_4]=raw[d_cg.n_channels*d_cg.n_rows_raw*(4*proj+3)+d_cg.n_channels*row+channel];
 }
 
-__global__ void a1_rebin_t(float * output,float da, float dr, int row){
+__global__ void a1_rebin_t(float * output,float da, float dr, int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -210,12 +249,15 @@ __global__ void a1_rebin_t(float * output,float da, float dr, int row){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel)+proj;
 
     float beta=beta_rk(da,-dr,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,-dr)*d_cg.n_proj_turn/(2.0f*pi);
+    beta_lookup[2*channel]=beta;
+    //float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,-dr)*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=d_ri.n_ffs*proj-beta*d_cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(da,-dr)*d_cg.n_proj_ffs/(2.0f*pi);
+    alpha_idx=alpha_idx/4.0f;
     
     output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void a2_rebin_t(float * output,float da, float dr, int row){
+__global__ void a2_rebin_t(float * output,float da, float dr, int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -223,12 +265,15 @@ __global__ void a2_rebin_t(float * output,float da, float dr, int row){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel+1)+proj;
 
     float beta=beta_rk(-da,-dr,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(-da,-dr)*d_cg.n_proj_turn/(2.0f*pi);
+    beta_lookup[2*channel+1]=beta;
+    //float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(-da,-dr)*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=d_ri.n_ffs*proj-beta*d_cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(-da,-dr)*d_cg.n_proj_ffs/(2.0f*pi);
+    alpha_idx=(alpha_idx-1.0f)/4.0f;
     
     output[out_idx]=tex2D(tex_b,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void a3_rebin_t(float * output,float da, float dr, int row){
+__global__ void a3_rebin_t(float * output,float da, float dr, int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -236,12 +281,15 @@ __global__ void a3_rebin_t(float * output,float da, float dr, int row){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel)+proj;
 
     float beta=beta_rk(da,dr,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,dr)*d_cg.n_proj_turn/(2.0f*pi);
-    
+    beta_lookup[2*channel]=beta;    
+    //float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(da,dr)*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=d_ri.n_ffs*proj-beta*d_cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(da,dr)*d_cg.n_proj_ffs/(2.0f*pi);
+    alpha_idx=(alpha_idx-2.0f)/4.0f;
+
     output[out_idx]=tex2D(tex_c,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void a4_rebin_t(float * output,float da, float dr, int row){
+__global__ void a4_rebin_t(float * output,float da, float dr, int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -249,7 +297,10 @@ __global__ void a4_rebin_t(float * output,float da, float dr, int row){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel+1)+proj;
 
     float beta=beta_rk(-da,dr,channel,0);
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(-da,dr)*d_cg.n_proj_turn/(2.0f*pi);
+    beta_lookup[2*channel+1]=beta;
+    //float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi)-d_alpha_r(-da,dr)*d_cg.n_proj_turn/(2.0f*pi);
+    float alpha_idx=d_ri.n_ffs*proj-beta*d_cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(-da,dr)*d_cg.n_proj_ffs/(2.0f*pi);
+    alpha_idx=(alpha_idx-3.0f)/4.0f;
     
     output[out_idx]=tex2D(tex_d,alpha_idx+0.5f,channel+0.5f);
 }
@@ -259,7 +310,12 @@ __global__ void a1_rebin_b(float * output,float * beta_lookup,float dr,int row){
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
-    int out_idx = n_proj*d_cg.n_channels_oversampled*2*row+n_proj*channel+proj;
+
+    int out_idx;
+    if (!d_cg.reverse_row_interleave)
+	out_idx = n_proj*d_cg.n_channels_oversampled*2*row+n_proj*channel+proj;
+    else
+	out_idx = n_proj*d_cg.n_channels_oversampled*(2*row+1)+n_proj*channel+proj;
    
     float beta=asin((channel-2.0f*d_cg.central_channel)*(d_cg.fan_angle_increment/2.0f)*d_cg.r_f/r_fr(0.0f,-dr));
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
@@ -274,7 +330,12 @@ __global__ void a2_rebin_b(float * output,float * beta_lookup,float dr,int row){
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
-    int out_idx = n_proj*d_cg.n_channels_oversampled*(2*row+1)+n_proj*channel+proj;
+
+    int out_idx;
+    if (!d_cg.reverse_row_interleave)
+	out_idx = n_proj*d_cg.n_channels_oversampled*(2*row+1)+n_proj*channel+proj;
+    else
+	out_idx = n_proj*d_cg.n_channels_oversampled*2*row+n_proj*channel+proj;
     
     float beta=asin((channel-2.0f*d_cg.central_channel)*(d_cg.fan_angle_increment/2.0f)*d_cg.r_f/r_fr(0.0f,dr));
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
