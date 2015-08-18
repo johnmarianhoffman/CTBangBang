@@ -336,8 +336,14 @@ void rebin_zffs_cpu(struct recon_metadata *mr){
 		alpha_idx_1=alpha_idx_1/2.0f; // raw_1 contains alpha projections 0, 2, 4, 6, ...
 		alpha_idx_2=(alpha_idx_2-1.0f)/2.0f; // raw_2 contains projections 1, 3, 5, 7, ...
 
-		int out_idx_1=cg.n_channels_oversampled*cg.n_rows*proj + cg.n_channels_oversampled*  2*row   + channel;
-		int out_idx_2=cg.n_channels_oversampled*cg.n_rows*proj + cg.n_channels_oversampled*(2*row+1) + channel;
+		if (!cg.reverse_row_interleave){
+		    int out_idx_1=cg.n_channels_oversampled*cg.n_rows*proj + cg.n_channels_oversampled*  2*row   + channel;
+		    int out_idx_2=cg.n_channels_oversampled*cg.n_rows*proj + cg.n_channels_oversampled*(2*row+1) + channel;
+		}
+		else{
+		    int out_idx_1=cg.n_channels_oversampled*cg.n_rows*proj + cg.n_channels_oversampled* (2*row+1) + channel;
+		    int out_idx_2=cg.n_channels_oversampled*cg.n_rows*proj + cg.n_channels_oversampled*   2*row   + channel;
+		}
 
 		h_output[out_idx_1]=interp3(raw_1,dim,beta_idx_1,row,alpha_idx_1);
 		h_output[out_idx_2]=interp3(raw_2,dim,beta_idx_2,row,alpha_idx_2);
@@ -524,9 +530,16 @@ void rebin_affs_cpu(struct recon_metadata *mr){
     for (int proj=0;proj<n_proj;proj++){
 	for (int row=0;row<cg.n_rows_raw;row++){
 	    for (int channel=0;channel<cg.n_channels_oversampled;channel++){
+
+		if (!cg.reverse_row_interleave){		
+		    int out_idx_1=cg.n_channels_oversampled*cg.n_rows*proj+cg.n_channels_oversampled*  2*row  +channel;
+		    int out_idx_2=cg.n_channels_oversampled*cg.n_rows*proj+cg.n_channels_oversampled*(2*row+1)+channel;
+		}
+		else{
+		    int out_idx_1=cg.n_channels_oversampled*cg.n_rows*proj+cg.n_channels_oversampled*(2*row+1)+channel;
+		    int out_idx_2=cg.n_channels_oversampled*cg.n_rows*proj+cg.n_channels_oversampled*  2*row  +channel;
+		}
 		
-		int out_idx_1=cg.n_channels_oversampled*cg.n_rows*proj+cg.n_channels_oversampled*  2*row  +channel;
-		int out_idx_2=cg.n_channels_oversampled*cg.n_rows*proj+cg.n_channels_oversampled*(2*row+1)+channel;
 		float beta_1 = asin((channel-2*cg.central_channel)*(cg.fan_angle_increment/2)*cg.r_f/r_fr(0.0f,-dr,cg));
 		float beta_2 = asin((channel-2*cg.central_channel)*(cg.fan_angle_increment/2)*cg.r_f/r_fr(0.0f,dr,cg));
 		float beta_idx_1=get_beta_idx(beta_1,beta_lookup_1,cg.n_channels_oversampled);

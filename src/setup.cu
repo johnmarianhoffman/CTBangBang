@@ -278,7 +278,7 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 	cg.n_channels_oversampled=2*cg.n_channels; 
 	cg.n_rows=(unsigned int)rp.n_rows; 
 	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
-	cg.z_rot=15.6f; // This is related to the pitch, which we'll have to figure out 
+	cg.z_rot=rp.pitch_value;
 	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
 	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 
@@ -301,7 +301,7 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 	cg.n_channels_oversampled=2*cg.n_channels; 
 	cg.n_rows=(unsigned int)rp.n_rows; 
 	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
-	cg.z_rot=19.2f; // This is related to the pitch, which we'll have to figure out 
+	cg.z_rot=rp.pitch_value;
 	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
 	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 	
@@ -324,7 +324,7 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
  	cg.n_channels_oversampled=2*cg.n_channels; 
  	cg.n_rows=(unsigned int)rp.n_rows; 
  	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
- 	cg.z_rot=19.2f; // This is related to the pitch, which we'll have to figure out 
+ 	cg.z_rot=rp.pitch_value;
  	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
  	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 
