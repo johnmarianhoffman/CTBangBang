@@ -36,106 +36,228 @@ struct recon_params configure_recon_params(char * filename){
     fread(prm_buffer, sizeof(char), prm_size, prm_file);
     fclose(prm_file);
 
-    token=strtok(prm_buffer,"\t\n");
+    token=strtok(prm_buffer," \t\n%");
 
     //Parse parameter file
     while (token!=NULL){
 	if (strcmp(token,"RawDataDir:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%s",prms.raw_data_dir);
 	}
 	else if (strcmp(token,"RawDataFile:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%s",prms.raw_data_file);
 	}
 	else if (strcmp(token,"Nrows:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%i",&prms.n_rows);
 	}
 	else if (strcmp(token,"CollSlicewidth:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%f",&prms.coll_slicewidth);
 	}
 	else if (strcmp(token,"StartPos:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%f",&prms.start_pos);
 	}
 	else if (strcmp(token,"EndPos:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%f",&prms.end_pos);
 	}
+	else if (strcmp(token,"PitchValue:")==0){
+	    token=strtok(NULL," \t\n%");
+	    sscanf(token,"%f",&prms.pitch_value);
+	}
 	else if (strcmp(token,"SliceThickness:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%f",&prms.slice_thickness);
 	}
 	else if (strcmp(token,"AcqFOV:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%f",&prms.acq_fov);
 	}
 	else if (strcmp(token,"ReconFOV:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%f",&prms.recon_fov);
 	}
 	else if (strcmp(token,"ReconKernel:")==0){
-	    token=strtok(NULL,"\t\n");
+	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%d",&prms.recon_kernel);
 	}
 	else if (strcmp(token,"Readings:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%d",&prms.n_readings); 
  	} 
  	else if (strcmp(token,"Xorigin:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%f",&prms.x_origin); 
  	} 
  	else if (strcmp(token,"Yorigin:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%f",&prms.y_origin); 
  	} 
  	else if (strcmp(token,"Zffs:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%i",&prms.z_ffs); 
  	} 
  	else if (strcmp(token,"Phiffs:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%i",&prms.phi_ffs); 
  	} 
  	else if (strcmp(token,"Scanner:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
- 	    sscanf(token,"%i",&prms.scanner); 
+ 	    token=strtok(NULL," \t\n%"); 
+ 	    sscanf(token,"%s",prms.scanner); 
  	} 
  	else if (strcmp(token,"FileType:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%i",&prms.file_type); 
+ 	}
+	else if (strcmp(token,"FileSubType:")==0){ 
+ 	    token=strtok(NULL," \t\n%"); 
+ 	    sscanf(token,"%i",&prms.file_subtype); 
  	} 
  	else if (strcmp(token,"RawOffset:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%i",&prms.raw_data_offset); 
  	} 
  	else if (strcmp(token,"Nx:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%i",&prms.nx); 
  	} 
  	else if (strcmp(token,"Ny:")==0){ 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%i",&prms.ny); 
  	} 
  	else { 
- 	    token=strtok(NULL,"\t\n"); 
+ 	    //token=strtok(NULL," \t\n%"); 
  	} 
 
- 	token=strtok(NULL,"\t\n"); 
-     } 
+ 	token=strtok(NULL," \t\n%"); 
+    } 
 
-     free(prm_buffer); 
-     return prms; 
- } 
+    free(prm_buffer); 
+    return prms; 
+} 
 
-struct ct_geom configure_ct_geom(struct recon_params rp){ 
-    struct ct_geom cg; 
+struct ct_geom configure_ct_geom(struct recon_metadata *mr){ 
 
-    switch (rp.scanner){ 
+    struct ct_geom cg;
+    struct recon_params rp=mr->rp;
+    memset(&cg,0,sizeof(cg));
+    
+    char * cg_buffer;
+    char * token;
 
+    char path[4096+255];
+    int scanner=-1;
+    // First attempt to parse scanner as full filepath    
+    FILE * cg_file;
+    cg_file=fopen(mr->rp.scanner,"r");
+    if (cg_file==NULL){
+	// Next attempt to find the file in the "resources" directory of the project
+	strcpy(path,mr->install_dir);
+	strcat(path,"/resources/scanners/");
+	strcat(path,mr->rp.scanner);
+	cg_file=fopen(path,"r");
+	if (cg_file==NULL){
+	    // Finally, try it as a number for a hardcoded scanner 
+	    scanner=atoi(mr->rp.scanner);
+	    if ((scanner<0||scanner>2)||(scanner==0&&(strlen(mr->rp.scanner)!=1))){
+		perror("Could not parse selected scanner");
+		exit(1);
+	    }
+	    
+	    // If we use a hardcoded scanner, we want to supercede file subtype
+	    switch (scanner){
+	    case 0:// binary files, don't care
+		break;
+	    case 1:// DefinitionAS -> filetype=ptr -> 1 
+		mr->rp.file_subtype=1;
+		break;
+	    case 2:// Sensation64 -> filetype=ctd -> 2
+		mr->rp.file_subtype=2;
+		break;
+	    }
+	}
+    }
+
+    if (scanner==-1){// Found scanner file
+	fseek(cg_file, 0, SEEK_END);
+	size_t cg_size = ftell(cg_file);
+	rewind(cg_file);
+	cg_buffer = (char*)malloc(cg_size + 1);
+	cg_buffer[cg_size] = '\0';
+	fread(cg_buffer, sizeof(char), cg_size, cg_file);
+	fclose(cg_file);
+
+	token=strtok(cg_buffer," \t\n%");
+
+	//Parse parameter file
+	while (token!=NULL){
+	    if (strcmp(token,"RSrcToIso:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%f",&cg.r_f);
+	    }
+	    else if (strcmp(token,"RSrcToDet:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%f",&cg.src_to_det);
+	    }
+	    else if (strcmp(token,"AnodeAngle:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%f",&cg.anode_angle);
+	    }
+	    else if (strcmp(token,"FanAngleInc:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%f",&cg.fan_angle_increment);
+	    }
+	    else if (strcmp(token,"ThetaCone:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%f",&cg.theta_cone);
+	    }
+	    else if (strcmp(token,"CentralChannel:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%f",&cg.central_channel);
+	    }
+	    else if (strcmp(token,"NProjTurn:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%i",&cg.n_proj_turn);
+	    }
+	    else if (strcmp(token,"NChannels:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%i",&cg.n_channels);
+	    }
+	    else if (strcmp(token,"ReverseRowInterleave:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%i",&cg.reverse_row_interleave);
+	    }
+	    else if (strcmp(token,"ReverseChanInterleave:")==0){
+		token=strtok(NULL," \t\n%");
+		sscanf(token,"%i",&cg.reverse_channel_interleave);
+	    }
+	    else { 
+		//token=strtok(NULL," \t\n%"); 
+	    }
+	    
+	    token=strtok(NULL," \t\n%"); 
+	}
+	
+	free(cg_buffer);
+    }
+
+    // If we did not parse from a file, and have a valid number for
+    // the scanner, get our ct_geom from the hardcoded options
+    switch (scanner){ 
+    case -1:
+	// Finish everything out
+	cg.n_proj_ffs=cg.n_proj_turn*pow(2,rp.phi_ffs)*pow(2,rp.z_ffs); 
+	cg.n_channels_oversampled=2*cg.n_channels;
+	cg.n_rows=(unsigned int)rp.n_rows;
+	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs));
+	cg.z_rot=rp.pitch_value;
+	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 	
+	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
+	
+	break;
     case 0: // Non-standard scanner (in this case Fred Noo's Simulated Scanner)
 
 	//float det_spacing_1=1.4083f;
@@ -156,7 +278,7 @@ struct ct_geom configure_ct_geom(struct recon_params rp){
 	cg.n_channels_oversampled=2*cg.n_channels; 
 	cg.n_rows=(unsigned int)rp.n_rows; 
 	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
-	cg.z_rot=15.6f; // This is related to the pitch, which we'll have to figure out 
+	cg.z_rot=rp.pitch_value;
 	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
 	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 
@@ -179,7 +301,7 @@ struct ct_geom configure_ct_geom(struct recon_params rp){
 	cg.n_channels_oversampled=2*cg.n_channels; 
 	cg.n_rows=(unsigned int)rp.n_rows; 
 	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
-	cg.z_rot=19.2f; // This is related to the pitch, which we'll have to figure out 
+	cg.z_rot=rp.pitch_value;
 	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
 	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 	
@@ -202,7 +324,7 @@ struct ct_geom configure_ct_geom(struct recon_params rp){
  	cg.n_channels_oversampled=2*cg.n_channels; 
  	cg.n_rows=(unsigned int)rp.n_rows; 
  	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
- 	cg.z_rot=19.2f; // This is related to the pitch, which we'll have to figure out 
+ 	cg.z_rot=rp.pitch_value;
  	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
  	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 
@@ -216,17 +338,10 @@ struct ct_geom configure_ct_geom(struct recon_params rp){
 	//cg.central_channel+=0.375f; 
     }
     
-
     return cg;
 }
 
 void configure_reconstruction(struct recon_metadata *mr){
-    /* --- Get working directory and User's home directory --- */
-    struct passwd *pw=getpwuid(getuid());
-    const char * homedir=pw->pw_dir;
-    strcpy(mr->homedir,homedir);
-    getcwd(mr->install_dir,4096*sizeof(char));
-
     /* --- Get tube angles and table positions --- */
     struct ct_geom cg=mr->cg;
     struct recon_params rp=mr->rp;
@@ -246,31 +361,31 @@ void configure_reconstruction(struct recon_metadata *mr){
 
     switch (rp.file_type){
     case 0:{; // Binary file
-	for (int i=0;i<rp.n_readings;i++){
-	    mr->tube_angles[i]=fmod(((360.0f/cg.n_proj_ffs)*i),360.0f);
-	    mr->table_positions[i]=(rp.n_readings/cg.n_proj_ffs)*cg.z_rot-i*cg.z_rot/cg.n_proj_ffs;
-	}	
-	break;}
+	    for (int i=0;i<rp.n_readings;i++){
+		mr->tube_angles[i]=fmod(((360.0f/cg.n_proj_ffs)*i),360.0f);
+		mr->table_positions[i]=(rp.n_readings/cg.n_proj_ffs)*cg.z_rot-i*cg.z_rot/cg.n_proj_ffs;
+	    }	
+	    break;}
     case 1:{; //PTR
-	for (int i=0;i<rp.n_readings;i++){
-	    mr->tube_angles[i]=ReadPTRTubeAngle(raw_file,i,cg.n_channels,cg.n_rows_raw);
-	    mr->table_positions[i]=(double)ReadPTRTablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw)/1000.0;
-	}
-	break;}
+	    for (int i=0;i<rp.n_readings;i++){
+		mr->tube_angles[i]=ReadPTRTubeAngle(raw_file,i,cg.n_channels,cg.n_rows_raw);
+		mr->table_positions[i]=(double)ReadPTRTablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw)/1000.0;
+	    }
+	    break;}
     case 2:{; //CTD
-	for (int i=0;i<rp.n_readings;i++){
-	    mr->tube_angles[i]=ReadCTDTubeAngle(raw_file,i,cg.n_channels,cg.n_rows_raw);
-	    mr->table_positions[i]=(double)ReadCTDTablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw)/1000.0;
-	}
-	break;}
+	    for (int i=0;i<rp.n_readings;i++){
+		mr->tube_angles[i]=ReadCTDTubeAngle(raw_file,i,cg.n_channels,cg.n_rows_raw);
+		mr->table_positions[i]=(double)ReadCTDTablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw)/1000.0;
+	    }
+	    break;}
     case 3:{; //IMA
-	int raw_data_subtype=mr->rp.scanner; // Determine if we're looking for PTR or CTD
+	    int raw_data_subtype=mr->rp.file_subtype; // Determine if we're looking for PTR or CTD
 	
-	for (int i=0;i<rp.n_readings;i++){
-	    mr->tube_angles[i]=ReadIMATubeAngle(raw_file,i,cg.n_channels,cg.n_rows_raw,raw_data_subtype,rp.raw_data_offset);
-	    mr->table_positions[i]=(double)ReadIMATablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw,raw_data_subtype,rp.raw_data_offset)/1000.0;
-	}
-	break;}
+	    for (int i=0;i<rp.n_readings;i++){
+		mr->tube_angles[i]=ReadIMATubeAngle(raw_file,i,cg.n_channels,cg.n_rows_raw,raw_data_subtype,rp.raw_data_offset);
+		mr->table_positions[i]=(double)ReadIMATablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw,raw_data_subtype,rp.raw_data_offset)/1000.0;
+	    }
+	    break;}
     }
     fclose(raw_file);
     
@@ -418,7 +533,7 @@ void extract_projections(struct recon_metadata * mr){
     switch (mr->rp.file_type){
     case 0:{ // binary
 	for (int i=0;i<mr->ri.n_proj_pull;i++){
-	    ReadBinaryFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder);
+	    ReadBinaryFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder,mr->rp.raw_data_offset);
 	    for (int j=0;j<cg.n_channels*cg.n_rows_raw;j++){
 		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j];
 	    }
@@ -441,7 +556,7 @@ void extract_projections(struct recon_metadata * mr){
 	}
 	break;}
     case 3:{ // IMA (wraps either PTR or IMA)
-	int raw_data_subtype=rp.scanner;
+	int raw_data_subtype=rp.file_subtype;
 	for (int i=0;i<mr->ri.n_proj_pull;i++){
 	    ReadIMAFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder,raw_data_subtype,rp.raw_data_offset);
 	    for (int j=0;j<cg.n_channels*cg.n_rows_raw;j++){

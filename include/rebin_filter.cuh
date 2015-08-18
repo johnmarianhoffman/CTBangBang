@@ -132,7 +132,7 @@ __global__ void p1_rebin(float* output,float da,int row,float * beta_lookup){
     output[out_idx]=tex2D(tex_a,proj+0.5f,beta_idx+0.5f); 
 }
 
-	__global__ void p2_rebin(float* output,float da,int row,float * beta_lookup){
+__global__ void p2_rebin(float* output,float da,int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -173,7 +173,13 @@ __global__ void z1_rebin(float * output,float * beta_lookup,float dr,int row){
     
     __syncthreads();
 
-    output[(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*2*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj]=tex2D(tex_a,alpha_idx+0.5f,beta_idx+0.5f);
+    int out_idx;
+    if (!d_cg.reverse_row_interleave)
+	out_idx=(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*2*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
+    else
+	out_idx=(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*(2*row+1)+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
+    
+    output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,beta_idx+0.5f);
 }
 
 __global__ void z2_rebin(float * output,float * beta_lookup,float dr,int row){
@@ -189,7 +195,13 @@ __global__ void z2_rebin(float * output,float * beta_lookup,float dr,int row){
     
     __syncthreads();
 
-    output[(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*(2*row+1)+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj]=tex2D(tex_b,alpha_idx+0.5f,beta_idx+0.5f);
+    int out_idx;
+    if (!d_cg.reverse_row_interleave)
+	out_idx=(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*(2*row+1)+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
+    else
+	out_idx=(d_ri.n_proj_pull/d_ri.n_ffs)*d_cg.n_channels_oversampled*2*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;    
+    
+    output[out_idx]=tex2D(tex_b,alpha_idx+0.5f,beta_idx+0.5f);
 }
 
 /* --- Z only flying focal spot rebinning kernels ---*/
@@ -278,7 +290,12 @@ __global__ void a1_rebin_b(float * output,float * beta_lookup,float dr,int row){
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
-    int out_idx = n_proj*d_cg.n_channels_oversampled*2*row+n_proj*channel+proj;
+
+    int out_idx;
+    if (!d_cg.reverse_row_interleave)
+	out_idx = n_proj*d_cg.n_channels_oversampled*2*row+n_proj*channel+proj;
+    else
+	out_idx = n_proj*d_cg.n_channels_oversampled*(2*row+1)+n_proj*channel+proj;
    
     float beta=asin((channel-2.0f*d_cg.central_channel)*(d_cg.fan_angle_increment/2.0f)*d_cg.r_f/r_fr(0.0f,-dr));
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
@@ -293,7 +310,12 @@ __global__ void a2_rebin_b(float * output,float * beta_lookup,float dr,int row){
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
     int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
-    int out_idx = n_proj*d_cg.n_channels_oversampled*(2*row+1)+n_proj*channel+proj;
+
+    int out_idx;
+    if (!d_cg.reverse_row_interleave)
+	out_idx = n_proj*d_cg.n_channels_oversampled*(2*row+1)+n_proj*channel+proj;
+    else
+	out_idx = n_proj*d_cg.n_channels_oversampled*2*row+n_proj*channel+proj;
     
     float beta=asin((channel-2.0f*d_cg.central_channel)*(d_cg.fan_angle_increment/2.0f)*d_cg.r_f/r_fr(0.0f,dr));
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
