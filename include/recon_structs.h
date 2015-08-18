@@ -9,6 +9,7 @@ struct recon_params{
     float start_pos;
     float end_pos;
     float slice_thickness;
+    float pitch_value;
     float acq_fov;
     float recon_fov;
     int recon_kernel;
@@ -17,8 +18,9 @@ struct recon_params{
     int n_readings;
     int z_ffs;
     int phi_ffs;
-    int scanner;
+    char scanner[4096+255];
     int file_type;
+    int file_subtype;
     int raw_data_offset;
     unsigned int nx;
     unsigned int ny;
@@ -72,12 +74,16 @@ struct ct_geom{
     int projection_offset;
     int add_projections;
     int add_projections_ffs;
+    int reverse_row_interleave;
+    int reverse_channel_interleave;
 };
 
 struct flags{
     int testing;
     int verbose;
     int no_gpu;
+    int set_device;
+    int device_number;
 };
     
 struct recon_metadata {

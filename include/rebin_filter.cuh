@@ -132,7 +132,7 @@ __global__ void p1_rebin(float* output,float da,int row,float * beta_lookup){
     output[out_idx]=tex2D(tex_a,proj+0.5f,beta_idx+0.5f); 
 }
 
-	__global__ void p2_rebin(float* output,float da,int row,float * beta_lookup){
+__global__ void p2_rebin(float* output,float da,int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
