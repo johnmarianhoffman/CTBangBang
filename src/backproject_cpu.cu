@@ -116,7 +116,7 @@ int backproject_cpu(struct recon_metadata * mr){
 		    float p_idx=phat/(cg.r_f*cg.fan_angle_increment/2.0f)+2.0f*cg.central_channel;
 
 		    for (int zi=0;zi<mr->ri.n_slices_recon;zi++){
-			float z=zi*rp.slice_thickness+cg.z_rot/2.0f+cg.z_rot*tube_start/(2.0f*pi);
+			float z=zi*rp.coll_slicewidth+cg.z_rot/2.0f+cg.z_rot*tube_start/(2.0f*pi);
 
 			// More geometric info about the ray (longitudinal information)
 			float ray_pos=(cg.z_rot*(theta-asin(phat/cg.r_f))/(2.0f*pi));

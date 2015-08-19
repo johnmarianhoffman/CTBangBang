@@ -58,7 +58,7 @@ __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_tur
     
     float x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
     float y=(d_rp.recon_fov/d_rp.ny)*((float)yi-(d_rp.ny-1)/2.0f)+d_rp.y_origin;
-    float z=zi*d_rp.slice_thickness+d_cg.z_rot/2.0f+d_cg.z_rot*tube_start/(2.0f*pi);
+    float z=zi*d_rp.coll_slicewidth+d_cg.z_rot/2.0f+d_cg.z_rot*tube_start/(2.0f*pi);
     
     for (int i=0;i<I;i++){	
 
@@ -73,7 +73,7 @@ __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_tur
 	    float p_idx=phat/(d_cg.r_f*d_cg.fan_angle_increment/2.0f)+2.0f*d_cg.central_channel;
                 
 	    for (int j=0;j<K;j++){
-		z+=j*d_rp.slice_thickness;
+		z+=j*d_rp.coll_slicewidth;
 	    
 		float ray_pos=(d_cg.z_rot*(theta-asin(phat/d_cg.r_f))/(2.0f*pi));
 		float lhat=sqrt(pow(d_cg.r_f,2.0f)-pow(phat,2.0f))-x*cos(theta)-y*sin(theta);
@@ -120,7 +120,7 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
     
     float x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
     float y=(d_rp.recon_fov/d_rp.ny)*((float)yi-(d_rp.ny-1)/2.0f)+d_rp.y_origin;
-    float z=zi*d_rp.slice_thickness+d_cg.z_rot/2.0f+d_cg.z_rot*tube_start/(2.0f*pi);
+    float z=zi*d_rp.coll_slicewidth+d_cg.z_rot/2.0f+d_cg.z_rot*tube_start/(2.0f*pi);
     
     for (int i=0;i<I;i++){
 	
@@ -135,7 +135,7 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
 	    float p_idx=phat/(d_cg.r_f*d_cg.fan_angle_increment/2.0f)+2.0f*d_cg.central_channel;
 	    
 	    for (int j=0;j<K;j++){
-		z+=j*d_rp.slice_thickness;
+		z+=j*d_rp.coll_slicewidth;
 	    
 		float ray_pos=(d_cg.z_rot*(theta-asin(phat/d_cg.r_f))/(2.0f*pi));
 		float lhat=sqrt(pow(d_cg.r_f,2.0f)-pow(phat,2.0f))-x*cos(theta)-y*sin(theta);
