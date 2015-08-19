@@ -179,7 +179,6 @@ void rebin_nffs(struct recon_metadata *mr){
     }
 
     cudaFree(d_output);
-    cudaFree(d_filter);
     
     cudaStreamDestroy(stream1);
     cudaStreamDestroy(stream2);
