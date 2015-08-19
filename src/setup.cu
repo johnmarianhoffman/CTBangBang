@@ -417,13 +417,13 @@ void configure_reconstruction(struct recon_metadata *mr){
     if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
 	recon_direction=1;
 
-    int n_slices_requested=floor(fabs(rp.end_pos-rp.start_pos)/rp.slice_thickness)+1;
+    int n_slices_requested=floor(fabs(rp.end_pos-rp.start_pos)/rp.coll_slicewidth)+1;
     int n_slices_recon=(n_slices_requested-1)+(32-(n_slices_requested-1)%32);
 
     int n_blocks=n_slices_recon/n_slices_block;
     
-    float recon_start_pos=rp.start_pos;
-    float recon_end_pos=rp.start_pos+recon_direction*(n_slices_recon-1)*rp.slice_thickness;
+    float recon_start_pos=rp.start_pos-rp.slice_thickness;
+    float recon_end_pos=rp.start_pos+recon_direction*(n_slices_recon-1)*rp.coll_slicewidth;
     int array_direction=fabs(mr->table_positions[100]-mr->table_positions[0])/(mr->table_positions[100]-mr->table_positions[0]);
     int idx_slice_start=array_search(recon_start_pos,mr->table_positions,rp.n_readings,array_direction);
     int idx_slice_end=array_search(recon_end_pos,mr->table_positions,rp.n_readings,array_direction);
@@ -491,8 +491,8 @@ void update_block_info(recon_metadata *mr){
     if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
 	recon_direction=1;
     
-    float block_slice_start=ri.recon_start_pos+recon_direction*ri.cb.block_idx*rp.slice_thickness*ri.n_slices_block;
-    float block_slice_end=block_slice_start+recon_direction*(ri.n_slices_block-1)*rp.slice_thickness;
+    float block_slice_start=ri.recon_start_pos+recon_direction*ri.cb.block_idx*rp.coll_slicewidth*ri.n_slices_block;
+    float block_slice_end=block_slice_start+recon_direction*(ri.n_slices_block-1)*rp.coll_slicewidth;
     int array_direction=fabs(mr->table_positions[100]-mr->table_positions[0])/(mr->table_positions[100]-mr->table_positions[0]);
     int idx_block_slice_start=array_search(block_slice_start,mr->table_positions,rp.n_readings,array_direction);
     int idx_block_slice_end=array_search(block_slice_end,mr->table_positions,rp.n_readings,array_direction);
@@ -641,12 +641,60 @@ void finish_and_cleanup(struct recon_metadata * mr){
 	    }
 	}	
     }
-    
-    // Write the image data to disk
+
+    // Once we have straightened our image stack out, we need to adjust slice thickness
+    // to match what the user requested.
+    // We use a triangle average with the FWHM equal to the requested slice thickness
+
+    int n_raw_images=ri.n_slices_block*ri.n_blocks;
+    int n_slices_final=floor(fabs(rp.end_pos-rp.start_pos)/rp.slice_thickness)+1;
+    float * final_image_stack=(float*)calloc(rp.nx*rp.ny*n_slices_final,sizeof(float));
+
+    float * recon_locations;
+    recon_locations=(float*)calloc(n_slices_final,sizeof(float));
+    for (int i=0;i<n_slices_final;i++){
+	recon_locations[i]=rp.start_pos+recon_direction*i*rp.slice_thickness;
+    }
+
+    float * raw_recon_locations;
+    raw_recon_locations=(float*)calloc(n_raw_images,sizeof(float));
+    for (int i=0;i<n_raw_images;i++){
+	raw_recon_locations[i]=(rp.start_pos-recon_direction*rp.slice_thickness)+recon_direction*i*rp.coll_slicewidth;
+    }
+
+    float * weights;
+    weights=(float*)calloc(n_raw_images,sizeof(float));
+
+    // Loop over slices
+    for (int k=0;k<n_slices_final;k++){
+	int slice_location=recon_locations[k];
+	// Calculate all of the weights for the unaverages slices
+	float sum_weights=0;
+	for (int step=0;step<ri.n_slices_block*ri.n_blocks;step++){
+	    weights[step]=fmax(0,1-fabs(raw_recon_locations[step]-slice_location)/rp.slice_thickness);
+	    sum_weights+=weights[step];
+	}
+	
+	// Loop over pixels in slice k
+	for (int i=0;i<rp.nx;i++){
+	    for (int j=0;j<rp.ny;j++){
+		// Carry out the averaging
+		int out_idx=k*rp.nx*rp.ny+j*rp.nx+i;
+		for (int raw_slice=0;raw_slice<n_raw_images;raw_slice++){		    
+		    if (weights[raw_slice]!=0){
+			int raw_idx=raw_slice*rp.nx*rp.ny+j*rp.nx+i;
+			final_image_stack[out_idx]+=(weights[raw_slice]/sum_weights)*temp_out[raw_idx];
+		    }
+		}
+	    }
+	}
+    }
+
+    // Write the image data to disk    
     char fullpath[4096+255]={0};
     sprintf(fullpath,"%s/Desktop/%s.img",mr->homedir,mr->rp.raw_data_file);
     FILE * outfile=fopen(fullpath,"w");
-    fwrite(temp_out,sizeof(float),mr->rp.nx*mr->rp.ny*mr->ri.n_slices_requested,outfile);
+    fwrite(final_image_stack,sizeof(float),rp.nx*rp.ny*n_slices_final,outfile);
     fclose(outfile);
 
     // Check "testing" flag, if set write all reconstructed data to disk
@@ -655,10 +703,17 @@ void finish_and_cleanup(struct recon_metadata * mr){
 	strcpy(fullpath,mr->homedir);
 	strcat(fullpath,"/Desktop/image_data.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
-	fwrite(temp_out,sizeof(float),rp.nx*rp.ny*ri.n_slices_recon,outfile);
+	fwrite(temp_out,sizeof(float),rp.nx*rp.ny*n_slices_final,outfile);
 	fclose(outfile);
     }
-    
+
+    // Free stuff allocated inside cleanup
+    free(temp_out);
+    free(final_image_stack);
+    free(recon_locations);
+    free(raw_recon_locations);
+    free(weights);
+
     // Free all remaining allocations in metadata
     free(mr->ctd.raw);
     free(mr->ctd.rebin);
