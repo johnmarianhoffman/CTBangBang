@@ -28,7 +28,7 @@
 #define By 32
 
 int backproject(struct recon_metadata * mr){
-    
+
     struct ct_geom cg=mr->cg;
 
     float tube_start=mr->tube_angles[mr->ri.idx_pull_start+cg.add_projections_ffs]*pi/180;

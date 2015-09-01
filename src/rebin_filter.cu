@@ -45,6 +45,7 @@ void rebin_zffs(struct recon_metadata *mr);
 void rebin_affs(struct recon_metadata *mr);
 
 int rebin_filter(struct recon_metadata * mr){
+
     switch (mr->ri.n_ffs){
     case 1:{
 	rebin_nffs(mr);
@@ -64,6 +65,13 @@ int rebin_filter(struct recon_metadata * mr){
 }
 
 void rebin_nffs(struct recon_metadata *mr){
+
+    if (mr->flags.timing){
+	cudaEvent_t start,stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	cudaEventRecord(start);
+    }
 
     cudaStream_t stream1,stream2;
     cudaStreamCreate(&stream1);
@@ -130,7 +138,9 @@ void rebin_nffs(struct recon_metadata *mr){
     for (int i=0;i<cg.n_rows_raw;i++){
 	for (int j=0;j<cg.n_channels;j++){
 	    for (int k=0;k<mr->ri.n_proj_pull;k++){
-		sheets[j+k*cg.n_channels+i*cg.n_channels*mr->ri.n_proj_pull]=mr->ctd.raw[k*cg.n_channels*cg.n_rows_raw+i*cg.n_channels+j];
+		int out_idx= i*cg.n_channels*mr->ri.n_proj_pull+k*cg.n_channels+j;
+		int in_idx = k*cg.n_channels*cg.n_rows_raw+i*cg.n_channels+j;
+		sheets[out_idx]=mr->ctd.raw[in_idx];
 	    }
 	}
     }
@@ -141,6 +151,7 @@ void rebin_nffs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_a,cu_raw_1,channelDesc);
 
 	// Launch Kernel A
+	printf("%d\n",i);
 	n1_rebin<<<rebin_blocks,rebin_threads,0,stream1>>>(d_output,i);
 	filter<<<filter_blocks,filter_threads,shared_size,stream1>>>(d_output,i);
 	    
@@ -148,6 +159,7 @@ void rebin_nffs(struct recon_metadata *mr){
 	cudaMemcpyToArrayAsync(cu_raw_2,0,0,&sheets[(i+1)*proj_array_size],proj_array_size*sizeof(float),cudaMemcpyHostToDevice,stream2);
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
+	printf("%d\n",i+1);
 	n2_rebin<<<rebin_blocks,rebin_threads,0,stream2>>>(d_output,i+1);
 	filter<<<filter_blocks,filter_threads,shared_size,stream2>>>(d_output,i+1);
     }
@@ -614,6 +626,18 @@ void rebin_affs(struct recon_metadata *mr){
     tex_b.filterMode     = cudaFilterModeLinear;
     tex_b.normalized     = false;
 
+    tex_c.addressMode[0] = cudaAddressModeClamp;
+    tex_c.addressMode[1] = cudaAddressModeClamp;
+    tex_c.addressMode[2] = cudaAddressModeClamp;
+    tex_c.filterMode     = cudaFilterModeLinear;
+    tex_c.normalized     = false;
+
+    tex_d.addressMode[0] = cudaAddressModeClamp;
+    tex_d.addressMode[1] = cudaAddressModeClamp;
+    tex_d.addressMode[2] = cudaAddressModeClamp;
+    tex_d.filterMode     = cudaFilterModeLinear;
+    tex_d.normalized     = false;
+
     cudaChannelFormatDesc channelDesc=cudaCreateChannelDesc<float>();
 
     // Need to split arrays by focal spot and reshape into "sheets"
@@ -679,7 +703,7 @@ void rebin_affs(struct recon_metadata *mr){
 	strcpy(fullpath,mr->homedir);
 	strcat(fullpath,"/Desktop/reshape_2.ct_test");
 	outfile=fopen(fullpath,"w");
-	fwrite(h_fs_1,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
+	fwrite(h_fs_2,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 
 	memset(fullpath,0,4096+255);
@@ -731,7 +755,11 @@ void rebin_affs(struct recon_metadata *mr){
     cudaMalloc(&d_beta_lookup_2,cg.n_channels_oversampled*sizeof(float));
     
     for (int i=0;i<cg.n_rows_raw;i++){
-	cudaMemcpyToArrayAsync(cu_raw_1,0,0,&d_fs[cg.n_channels*ri.n_proj_pull/ri.n_ffs*i],cg.n_channels*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream1);
+	cudaMemcpyToArrayAsync(cu_raw_1,0,0,&d_fs[cg.n_channels*ri.n_proj_pull/ri.n_ffs*i                                                        ],cg.n_channels*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream1);
+	cudaMemcpyToArrayAsync(cu_raw_2,0,0,&d_fs[cg.n_channels*ri.n_proj_pull/ri.n_ffs*i +   cg.n_channels*ri.n_proj_pull/ri.n_ffs*cg.n_rows_raw],cg.n_channels*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream2);
+	cudaMemcpyToArrayAsync(cu_raw_3,0,0,&d_fs[cg.n_channels*ri.n_proj_pull/ri.n_ffs*i + 2*cg.n_channels*ri.n_proj_pull/ri.n_ffs*cg.n_rows_raw],cg.n_channels*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream3);
+	cudaMemcpyToArrayAsync(cu_raw_4,0,0,&d_fs[cg.n_channels*ri.n_proj_pull/ri.n_ffs*i + 3*cg.n_channels*ri.n_proj_pull/ri.n_ffs*cg.n_rows_raw],cg.n_channels*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream4);
+
 	cudaBindTextureToArray(tex_a,cu_raw_1,channelDesc);
 	a1_rebin_t<<<blocks_t_rebin,threads_t_rebin,0,stream1>>>(d_rebin_t1,da,dr,i,d_beta_lookup_1);
 	
@@ -752,7 +780,7 @@ void rebin_affs(struct recon_metadata *mr){
     if (mr->flags.testing){
 	float * h_rebin_t1;
 	float * h_rebin_t2;
-	h_rebin_t1=(float*)calloc(cg.n_channels_oversampled*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,sizeof(float));	
+	h_rebin_t1=(float*)calloc(cg.n_channels_oversampled*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,sizeof(float));
 	h_rebin_t2=(float*)calloc(cg.n_channels_oversampled*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,sizeof(float));
 	
 	cudaMemcpy(h_rebin_t1,d_rebin_t1,cg.n_channels_oversampled*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToHost);
@@ -887,7 +915,6 @@ void rebin_affs(struct recon_metadata *mr){
     cudaFreeArray(cu_raw_2);
     
     cudaFree(d_output);
-    cudaFree(d_filter);
     cudaFree(d_beta_lookup_1);
     cudaFree(d_beta_lookup_2);
 

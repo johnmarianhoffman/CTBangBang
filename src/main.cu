@@ -55,6 +55,7 @@ void usage(){
     printf("          -t: test files will be written to desktop.\n");
     printf("    --no-gpu: run program exclusively on CPU. Will override --device=i option.\n");
     printf("  --device=i: run on GPU device number 'i'\n");
+    printf("    --timing: Display timing information for each step of the recon process\n");
     printf("\n");
     printf("Copyright John Hoffman 2015\n\n");
     exit(0);
@@ -91,6 +92,9 @@ int main(int argc, char ** argv){
 	    mr.flags.set_device=1;
 	    sscanf(argv[i],"--device=%d",&mr.flags.device_number);
 	}
+	else if (strcmp(argv[i],"--timing")==0){
+	    mr.flags.timing=1;
+	}
 	else{
 	    usage();
 	}
@@ -112,6 +116,8 @@ int main(int argc, char ** argv){
     if (device_count==0){
 	mr.flags.no_gpu=1;
     }
+
+    cudaEvent_t start,stop;
     
     if (mr.flags.no_gpu==0){
 	int device;
@@ -164,19 +170,51 @@ int main(int argc, char ** argv){
 	// Step 4: Rebin and filter
 	log(mr.flags.verbose,"Rebinning and filtering data...\n");
 
+	if (mr.flags.timing){
+	    cudaEventCreate(&start);
+	    cudaEventCreate(&stop);
+	    cudaEventRecord(start);
+	}
+
 	if (mr.flags.no_gpu==1)
 	    rebin_filter_cpu(&mr);
 	else
 	    rebin_filter(&mr);
+
+	if (mr.flags.timing){
+	    cudaEventRecord(stop);
+	    cudaEventSynchronize(stop);
+	    float milli=0.0f;
+	    cudaEventElapsedTime(&milli,start,stop);
+	    printf("%.2f ms to rebin & filter\n",milli);
+	    cudaEventDestroy(start);
+	    cudaEventDestroy(stop);
+	}
 	
 	/* --- Step 5 handled by functions in backproject.cu ---*/
 	// Step 5: Backproject
 	log(mr.flags.verbose,"Backprojecting...\n");
 
+	if (mr.flags.timing){
+	    cudaEventCreate(&start);
+	    cudaEventCreate(&stop);
+	    cudaEventRecord(start);
+	}
+    
 	if (mr.flags.no_gpu==1)
 	    backproject_cpu(&mr);
 	else
 	    backproject(&mr);
+
+	if (mr.flags.timing){
+	    cudaEventRecord(stop);
+	    cudaEventSynchronize(stop);
+	    float milli=0.0f;
+	    cudaEventElapsedTime(&milli,start,stop);
+	    printf("%.2f ms to backproject\n",milli);
+	    cudaEventDestroy(start);
+	    cudaEventDestroy(stop);
+	}
 	
     }
     // Step 6: Save image data to disk (found in setup.cu)

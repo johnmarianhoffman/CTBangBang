@@ -417,13 +417,18 @@ void configure_reconstruction(struct recon_metadata *mr){
     if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
 	recon_direction=1;
 
-    int n_slices_requested=floor(fabs(rp.end_pos-rp.start_pos)/rp.coll_slicewidth)+1;
-    int n_slices_recon=(n_slices_requested-1)+(32-(n_slices_requested-1)%32);
+    float recon_start_pos = rp.start_pos - recon_direction*rp.slice_thickness;
+    float recon_end_pos   = rp.end_pos   + recon_direction*rp.slice_thickness;//rp.start_pos+recon_direction*(n_slices_recon-1)*rp.coll_slicewidth;
 
+    int n_slices_requested=floor(fabs(recon_end_pos-recon_start_pos)/rp.coll_slicewidth)+1;//floor(fabs(rp.end_pos-rp.start_pos)/rp.coll_slicewidth)+1;
+    int n_slices_recon=(n_slices_requested-1)+(n_slices_block-(n_slices_requested-1)%n_slices_block);
+
+    recon_end_pos=recon_start_pos+(n_slices_recon-1)*rp.coll_slicewidth;
+    
     int n_blocks=n_slices_recon/n_slices_block;
     
-    float recon_start_pos=rp.start_pos-rp.slice_thickness;
-    float recon_end_pos=rp.start_pos+recon_direction*(n_slices_recon-1)*rp.coll_slicewidth;
+    //float recon_start_pos=rp.start_pos;
+    //float recon_end_pos=rp.start_pos+recon_direction*(n_slices_recon-1)*rp.coll_slicewidth;
     int array_direction=fabs(mr->table_positions[100]-mr->table_positions[0])/(mr->table_positions[100]-mr->table_positions[0]);
     int idx_slice_start=array_search(recon_start_pos,mr->table_positions,rp.n_readings,array_direction);
     int idx_slice_end=array_search(recon_end_pos,mr->table_positions,rp.n_readings,array_direction);
@@ -607,14 +612,10 @@ void finish_and_cleanup(struct recon_metadata * mr){
 
     float * temp_out=(float*)calloc(rp.nx*rp.ny*ri.n_slices_recon,sizeof(float));
 
-    int recon_direction=(mr->ri.idx_slice_start-mr->ri.idx_slice_end)/abs(mr->ri.idx_slice_start-mr->ri.idx_slice_end);
-
-    if (recon_direction!=1&&recon_direction!=-1&&recon_direction!=0)
-	printf("An error may have occurred\n");
-
-    if (recon_direction!=1&&recon_direction!=-1)
+    int recon_direction=fabs(rp.end_pos-rp.start_pos)/(rp.end_pos-rp.start_pos);
+    if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
 	recon_direction=1;
-
+    
     int table_direction=(mr->table_positions[1000]-mr->table_positions[0])/abs(mr->table_positions[1000]-mr->table_positions[0]);
     if (table_direction!=1&&table_direction!=-1)
 	printf("Axial scans are currently unsupported, or a different error has occurred\n");
@@ -659,7 +660,7 @@ void finish_and_cleanup(struct recon_metadata * mr){
     float * raw_recon_locations;
     raw_recon_locations=(float*)calloc(n_raw_images,sizeof(float));
     for (int i=0;i<n_raw_images;i++){
-	raw_recon_locations[i]=(rp.start_pos-recon_direction*rp.slice_thickness)+recon_direction*i*rp.coll_slicewidth;
+	raw_recon_locations[i]=ri.recon_start_pos+recon_direction*i*rp.coll_slicewidth;//(rp.start_pos-recon_direction*rp.slice_thickness)+recon_direction*i*rp.coll_slicewidth;
     }
 
     float * weights;

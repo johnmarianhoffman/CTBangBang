@@ -104,6 +104,7 @@ struct flags{
     int no_gpu;
     int set_device;
     int device_number;
+    int timing;
 };
     
 struct recon_metadata {
