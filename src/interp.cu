@@ -69,16 +69,16 @@ float interp3(float * array, struct array_dims dim, float idx1,float idx2,float 
     // dim.idx3 and idx3 are stored in memory with stride dim.idx1*dim.idx2
     
     // Clamping
-    if (idx1>(dim.idx1-2))
-	idx1=dim.idx1-2.0f;
+    if (idx1>(dim.idx1-1))
+	idx1=dim.idx1-1.0f;
     if (idx1<0)
 	idx1=0.0f;
-    if (idx2>(dim.idx2-2))
-	idx2=dim.idx2-2.0f;
+    if (idx2>(dim.idx2-1))
+	idx2=dim.idx2-1.0f;
     if (idx2<0)
 	idx2=0.0f;
-    if (idx3>(dim.idx3-2))
-	idx3=dim.idx3-2.0f;
+    if (idx3>(dim.idx3-1))
+	idx3=dim.idx3-1.0f;
     if (idx3<0)
 	idx3=0.0f;
 
@@ -97,6 +97,27 @@ float interp3(float * array, struct array_dims dim, float idx1,float idx2,float 
     int a_idx7=((int)floor(idx3)+1)*dim.idx2*dim.idx1 + ((int)floor(idx2)+1)*dim.idx1 + (int)floor(idx1);
     int a_idx8=((int)floor(idx3)+1)*dim.idx2*dim.idx1 + ((int)floor(idx2)+1)*dim.idx1 + (int)floor(idx1) + 1;    
 
+    // Clamp any indices that would be over the edge of our array
+    if (idx1==dim.idx1-1.0f){
+	a_idx2=a_idx1;
+	a_idx4=a_idx3;
+	a_idx6=a_idx5;
+	a_idx8=a_idx7;
+    }
+    if (idx2==dim.idx2-1.0f){
+	a_idx3=a_idx1;
+	a_idx4=a_idx2;
+	a_idx7=a_idx5;
+	a_idx8=a_idx6;
+
+    }
+    if (idx3==dim.idx3-1.0f){
+	a_idx5=a_idx1;
+	a_idx6=a_idx2;
+	a_idx7=a_idx3;
+	a_idx8=a_idx4;
+    }
+    
     //Return the interpolation
     return array[a_idx1]  *  (1-u) * (1-v) * (1-w) + 
 	   array[a_idx2]  *    u   * (1-v) * (1-w) +

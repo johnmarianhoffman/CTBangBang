@@ -74,22 +74,26 @@ __global__ void n1_rebin(float * output,int row){
     int channel = threadIdx.x + blockDim.x*blockIdx.x;
     int proj    = threadIdx.y + blockDim.y*blockIdx.y;
     
-    float beta=asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2.0f*pi);
+    float beta=asin(((float)channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
+    float alpha_idx=(float)proj-beta*d_cg.n_proj_turn/(2.0f*pi);
     float beta_idx=beta/d_cg.fan_angle_increment+d_cg.central_channel;
 
-    output[d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj]=tex2D(tex_a,beta_idx+0.5f,alpha_idx+0.5f);
+    int out_idx=d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
+    
+    output[out_idx]=tex2D(tex_a,beta_idx+0.5f,alpha_idx+0.5f);
 }
 
 __global__ void n2_rebin(float * output,int row){
     int channel = threadIdx.x + blockDim.x*blockIdx.x;
     int proj    = threadIdx.y + blockDim.y*blockIdx.y;
 
-    float beta=asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
-    float alpha_idx=(proj)-beta*d_cg.n_proj_turn/(2*pi);
+    float beta=asin(((float)channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
+    float alpha_idx=(float)proj-beta*d_cg.n_proj_turn/(2*pi);
     float beta_idx=beta/d_cg.fan_angle_increment+d_cg.central_channel;
 
-    output[d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj]=tex2D(tex_b,beta_idx+0.5f,alpha_idx+0.5f);
+    int out_idx=d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
+    
+    output[out_idx]=tex2D(tex_b,beta_idx+0.5f,alpha_idx+0.5f);
 }
 
 /* --- Phi only flying focal spot rebinning kernels ---*/
@@ -318,6 +322,7 @@ __global__ void a1_rebin_b(float * output,float * beta_lookup,float dr,int row){
 	out_idx = n_proj*d_cg.n_channels_oversampled*(2*row+1)+n_proj*channel+proj;
    
     float beta=asin((channel-2.0f*d_cg.central_channel)*(d_cg.fan_angle_increment/2.0f)*d_cg.r_f/r_fr(0.0f,-dr));
+
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
     
     __syncthreads();
