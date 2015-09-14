@@ -9,7 +9,11 @@ test
 .recon_wfbp.sh
 
 # Parameter files
-**/*.prm
+# Parameter file directory, except samples
+# **/*.prm
+prms/*
+prms/*/
+!/prms/samples/
 
 # Object files
 **/*.o

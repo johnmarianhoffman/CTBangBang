@@ -228,7 +228,7 @@ __global__ void z2_rebin(float * output,float * beta_lookup,float dr,int row){
     output[out_idx]=tex2D(tex_b,alpha_idx+0.5f,beta_idx+0.5f);
 }
 
-/* --- Z only flying focal spot rebinning kernels ---*/
+/* --- Z and Phi flying focal spot rebinning kernels ---*/
 __global__ void a_reshape(float * raw, float * out,int offset){
     int channel=blockIdx.x*blockDim.x+threadIdx.x;
     int row=blockIdx.y*blockDim.y+threadIdx.y;
