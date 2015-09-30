@@ -56,6 +56,8 @@ struct block_info{
 
 struct recon_info{
     int n_ffs;
+    float data_begin_pos;
+    float data_end_pos;
     int n_slices_requested;
     int n_slices_recon;
     int n_slices_block;

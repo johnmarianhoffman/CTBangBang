@@ -68,7 +68,7 @@ int backproject(struct recon_metadata * mr){
     cudaMallocArray(&cu_proj_2,&channelDesc,cg.n_channels_oversampled,I*cg.n_rows*n_half_turns);
 
     dim3 threads(Bx,By);
-    dim3 blocks(mr->rp.nx/Bx,mr->rp.ny/By,mr->ri.n_slices_recon/K);
+    dim3 blocks(mr->rp.nx/Bx,mr->rp.ny/By,mr->ri.n_slices_block/K);
 
     FILE * outfile;
 

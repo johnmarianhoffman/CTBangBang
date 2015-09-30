@@ -151,7 +151,6 @@ void rebin_nffs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_a,cu_raw_1,channelDesc);
 
 	// Launch Kernel A
-	printf("%d\n",i);
 	n1_rebin<<<rebin_blocks,rebin_threads,0,stream1>>>(d_output,i);
 	filter<<<filter_blocks,filter_threads,shared_size,stream1>>>(d_output,i);
 	    
@@ -159,7 +158,6 @@ void rebin_nffs(struct recon_metadata *mr){
 	cudaMemcpyToArrayAsync(cu_raw_2,0,0,&sheets[(i+1)*proj_array_size],proj_array_size*sizeof(float),cudaMemcpyHostToDevice,stream2);
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
-	printf("%d\n",i+1);
 	n2_rebin<<<rebin_blocks,rebin_threads,0,stream2>>>(d_output,i+1);
 	filter<<<filter_blocks,filter_threads,shared_size,stream2>>>(d_output,i+1);
     }
