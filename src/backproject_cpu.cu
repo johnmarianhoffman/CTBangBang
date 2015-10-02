@@ -53,17 +53,18 @@ int backproject_cpu(struct recon_metadata * mr){
     struct ct_geom cg=mr->cg;
     struct recon_params rp=mr->rp;
     
-    float tube_start=mr->tube_angles[mr->ri.idx_pull_start+cg.add_projections_ffs]*pi/180;
+    //float tube_start=mr->tube_angles[mr->ri.idx_pull_start+cg.add_projections_ffs]*pi/180;
+    float tube_start=fmod((double)(mr->tube_angles[0]+((mr->ri.idx_pull_start+cg.add_projections_ffs)*360.0f/cg.n_proj_ffs)),360.0)*pi/180.0f;
     int n_half_turns=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)/(cg.n_proj_turn/2);
     
     // Allocate the final output volume and intermediate voxel/weight arrays
     float * h_output;
-    h_output=(float *)calloc(mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon,sizeof(float));
+    h_output=(float *)calloc(mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block,sizeof(float));
 
     float * s_t;
-    s_t=(float *)malloc(mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon*sizeof(float));
+    s_t=(float *)malloc(mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block*sizeof(float));
     float * h_t;
-    h_t=(float *)malloc(mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon*sizeof(float));
+    h_t=(float *)malloc(mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block*sizeof(float));
     
     // Allocate the array to hold the projections currently being processed
     float * proj;
@@ -96,8 +97,8 @@ int backproject_cpu(struct recon_metadata * mr){
 	}
 	
 	// Set our intermediate arrays to zeros
-	memset(s_t,0,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon*sizeof(float));
-	memset(h_t,0,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon*sizeof(float));
+	memset(s_t,0,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block*sizeof(float));
+	memset(h_t,0,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block*sizeof(float));
 
 	// Start loop over the voxels.
 	// X and Y are looped over first to reuse theta, phat and p_idx calculations
@@ -115,7 +116,7 @@ int backproject_cpu(struct recon_metadata * mr){
 		    float phat=x*sin(theta)-y*cos(theta);
 		    float p_idx=phat/(cg.r_f*cg.fan_angle_increment/2.0f)+2.0f*cg.central_channel;
 
-		    for (int zi=0;zi<mr->ri.n_slices_recon;zi++){
+		    for (int zi=0;zi<mr->ri.n_slices_block;zi++){
 			float z=zi*rp.coll_slicewidth+cg.z_rot/2.0f+cg.z_rot*tube_start/(2.0f*pi);
 
 			// More geometric info about the ray (longitudinal information)
@@ -126,7 +127,7 @@ int backproject_cpu(struct recon_metadata * mr){
 
 			// Compute the voxel idx in output array. For output arrays, z is stored linearly in memory (stride 1),
 			// then y (stride nz), then x (stride nz*ny)
-			int vi=mr->ri.n_slices_recon*mr->rp.ny*xi + mr->ri.n_slices_recon*yi + zi;
+			int vi=mr->ri.n_slices_block*mr->rp.ny*xi + mr->ri.n_slices_block*yi + zi;
 
 			// Update voxel by interpolating from projection array and update weights
 			s_t[vi]+=interp2(proj,dim,p_idx,q_idx)*W(qhat);
@@ -140,9 +141,9 @@ int backproject_cpu(struct recon_metadata * mr){
 	// In this array, x is stored linearly, y is stored with stride nx, z with stride nx*ny
 	for (int xi=0;xi<mr->rp.nx;xi++){
 	    for (int yi=0;yi<mr->rp.ny;yi++){
-		for (int zi=0;zi<mr->ri.n_slices_recon;zi++){
+		for (int zi=0;zi<mr->ri.n_slices_block;zi++){
 		    int out_idx=zi*mr->rp.nx*mr->rp.ny+yi*mr->rp.nx+xi;
-		    int in_idx=mr->ri.n_slices_recon*mr->rp.ny*xi + mr->ri.n_slices_recon*yi + zi;
+		    int in_idx=mr->ri.n_slices_block*mr->rp.ny*xi + mr->ri.n_slices_block*yi + zi;
 
 		    if (h_t[in_idx]!=0)
 			h_output[out_idx]+=(1.0f/h_t[in_idx])*s_t[in_idx]*2*pi/cg.n_proj_turn;		
@@ -154,7 +155,7 @@ int backproject_cpu(struct recon_metadata * mr){
 
     // Debugging:
     outfile=fopen("/home/john/Desktop/image_data.txt","w");
-    fwrite(h_output,sizeof(float),mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon,outfile);
+    fwrite(h_output,sizeof(float),mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block,outfile);
     fclose(outfile);
 
     // Copy reconstructed sub-volume into the final full-size reconstructed volume

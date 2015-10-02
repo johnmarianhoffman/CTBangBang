@@ -42,6 +42,7 @@ struct recon_params configure_recon_params(char * filename){
     char *token;
 
     FILE * prm_file;
+    printf("%s\n",filename);
     prm_file=fopen(filename,"r");
     if (prm_file==NULL){
 	perror("Parameter file not found.");
