@@ -29,6 +29,7 @@ struct recon_params{
     float start_pos;
     float end_pos;
     float slice_thickness;
+    float tube_start_angle;
     float pitch_value;
     float acq_fov;
     float recon_fov;

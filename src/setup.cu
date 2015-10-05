@@ -148,6 +148,10 @@ struct recon_params configure_recon_params(char * filename){
  	else if (strcmp(token,"Ny:")==0){ 
  	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%i",&prms.ny); 
+ 	}
+	else if (strcmp(token,"TubeStartAngle:")==0){ 
+ 	    token=strtok(NULL," \t\n%"); 
+ 	    sscanf(token,"%f",&prms.tube_start_angle); 
  	} 
  	else { 
  	    //token=strtok(NULL," \t\n%"); 
@@ -383,8 +387,8 @@ void configure_reconstruction(struct recon_metadata *mr){
     switch (rp.file_type){
     case 0:{; // Binary file
 	    for (int i=0;i<rp.n_readings;i++){
-		mr->tube_angles[i]=fmod(((360.0f/cg.n_proj_ffs)*i),360.0f);
-		mr->table_positions[i]=(rp.n_readings/cg.n_proj_ffs)*cg.z_rot-i*cg.z_rot/cg.n_proj_ffs;
+		mr->tube_angles[i]=fmod(((360.0f/cg.n_proj_ffs)*i+rp.tube_start_angle),360.0f);
+		mr->table_positions[i]=((float)rp.n_readings/(float)cg.n_proj_ffs)*cg.z_rot-(float)i*cg.z_rot/(float)cg.n_proj_ffs;
 	    }	
 	    break;}
     case 1:{; //PTR
