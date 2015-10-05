@@ -42,6 +42,7 @@ struct recon_params configure_recon_params(char * filename){
     char *token;
 
     FILE * prm_file;
+    printf("%s\n",filename);
     prm_file=fopen(filename,"r");
     if (prm_file==NULL){
 	perror("Parameter file not found.");
@@ -147,6 +148,10 @@ struct recon_params configure_recon_params(char * filename){
  	else if (strcmp(token,"Ny:")==0){ 
  	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%i",&prms.ny); 
+ 	}
+	else if (strcmp(token,"TubeStartAngle:")==0){ 
+ 	    token=strtok(NULL," \t\n%"); 
+ 	    sscanf(token,"%f",&prms.tube_start_angle); 
  	} 
  	else { 
  	    //token=strtok(NULL," \t\n%"); 
@@ -382,8 +387,8 @@ void configure_reconstruction(struct recon_metadata *mr){
     switch (rp.file_type){
     case 0:{; // Binary file
 	    for (int i=0;i<rp.n_readings;i++){
-		mr->tube_angles[i]=fmod(((360.0f/cg.n_proj_ffs)*i),360.0f);
-		mr->table_positions[i]=(rp.n_readings/cg.n_proj_ffs)*cg.z_rot-i*cg.z_rot/cg.n_proj_ffs;
+		mr->tube_angles[i]=fmod(((360.0f/cg.n_proj_ffs)*i+rp.tube_start_angle),360.0f);
+		mr->table_positions[i]=((float)rp.n_readings/(float)cg.n_proj_ffs)*cg.z_rot-(float)i*cg.z_rot/(float)cg.n_proj_ffs;
 	    }	
 	    break;}
     case 1:{; //PTR
@@ -408,7 +413,7 @@ void configure_reconstruction(struct recon_metadata *mr){
 	    break;}
     }
     fclose(raw_file);
-    
+
     /* --- Figure out how many and which projections to grab --- */
     int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
     int n_slices_block=BLOCK_SLICES;
@@ -423,15 +428,35 @@ void configure_reconstruction(struct recon_metadata *mr){
     int n_slices_requested=floor(fabs(recon_end_pos-recon_start_pos)/rp.coll_slicewidth)+1;//floor(fabs(rp.end_pos-rp.start_pos)/rp.coll_slicewidth)+1;
     int n_slices_recon=(n_slices_requested-1)+(n_slices_block-(n_slices_requested-1)%n_slices_block);
 
-    recon_end_pos=recon_start_pos+(n_slices_recon-1)*rp.coll_slicewidth;
+    recon_end_pos=recon_start_pos+recon_direction*(n_slices_recon-1)*rp.coll_slicewidth;
     
     int n_blocks=n_slices_recon/n_slices_block;
-    
+
     //float recon_start_pos=rp.start_pos;
     //float recon_end_pos=rp.start_pos+recon_direction*(n_slices_recon-1)*rp.coll_slicewidth;
     int array_direction=fabs(mr->table_positions[100]-mr->table_positions[0])/(mr->table_positions[100]-mr->table_positions[0]);
     int idx_slice_start=array_search(recon_start_pos,mr->table_positions,rp.n_readings,array_direction);
     int idx_slice_end=array_search(recon_end_pos,mr->table_positions,rp.n_readings,array_direction);
+
+
+    // Decide if the user has requested a valid range for reconstruction
+    mr->ri.data_begin_pos = mr->table_positions[0];
+    mr->ri.data_end_pos   = mr->table_positions[rp.n_readings-1];
+    float projection_padding= cg.z_rot * (cg.n_proj_ffs/2+cg.add_projections_ffs+256)/cg.n_proj_ffs;
+    printf("Projection padding is: %.4fmm\n",projection_padding);//debug
+    float allowed_begin = mr->ri.data_begin_pos+array_direction*projection_padding;
+    float allowed_end   = mr->ri.data_end_pos-array_direction*projection_padding;
+    printf("Allowed recon range: %.2f to %.2f\n",allowed_begin,allowed_end);
+    
+    if (((rp.start_pos>allowed_begin)&&(rp.start_pos>allowed_end))||((rp.start_pos<allowed_begin)&&(rp.start_pos<allowed_end))){
+	printf("Requested reconstruction is outside of allowed data range: %.2f to %.2f\n",allowed_begin,allowed_end);
+	exit(0);
+    }
+    
+    if (((rp.end_pos>allowed_begin)&&(rp.end_pos>allowed_end))||((rp.end_pos<allowed_begin)&&(rp.end_pos<allowed_end))){
+	printf("Requested reconstruction is outside of allowed data range: %.2f to %.2f\n",allowed_begin,allowed_end);
+	exit(0);
+    }
 
     // We always pull projections in the order they occur in the raw
     // data.  If the end_pos comes before the start position in the

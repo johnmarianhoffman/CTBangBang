@@ -46,6 +46,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 
 void log(int verbosity, const char *string, ...);
+void split_path_file(char** p, char** f, char *pf);
 
 void usage(){
     printf("\n");
@@ -104,7 +105,13 @@ int main(int argc, char ** argv){
     struct passwd *pw=getpwuid(getuid());
     const char * homedir=pw->pw_dir;
     strcpy(mr.homedir,homedir);
-    getcwd(mr.install_dir,4096*sizeof(char));
+    char full_exe_path[4096];
+    char * exe_path=(char*)malloc(4096*sizeof(char));
+    char * exe_name=(char*)malloc(255*sizeof(char));
+    readlink("/proc/self/exe",full_exe_path,4096);
+    split_path_file(&exe_path,&exe_name,full_exe_path);
+    strcpy(mr.install_dir,exe_path);
+    mr.install_dir[strlen(mr.install_dir)-1]=0;
     
     /* --- Step 0: configure our processor (CPU or GPU) */
     // We want to send to the GPU furthest back in the list which is
@@ -236,4 +243,12 @@ void log(int verbosity, const char *string,...){
 	vprintf(string,args);
 	va_end(args);
     } 
+}
+
+void split_path_file(char** p, char** f, char *pf) {
+    char *slash = pf, *next;
+    while ((next = strpbrk(slash + 1, "\\/"))) slash = next;
+    if (pf != slash) slash++;
+    *p = strndup(pf, slash - pf);
+    *f = strdup(slash);
 }

@@ -23,6 +23,7 @@
 #include <recon_structs.h>
 #include <backproject.cuh>
 #include <backproject.h>
+#include <math.h>
 
 #define Bx 32
 #define By 32
@@ -31,7 +32,10 @@ int backproject(struct recon_metadata * mr){
 
     struct ct_geom cg=mr->cg;
 
-    float tube_start=mr->tube_angles[mr->ri.idx_pull_start+cg.add_projections_ffs]*pi/180;
+    //float tube_start=mr->tube_angles[mr->ri.idx_pull_start+cg.add_projections_ffs]*pi/180;
+
+    float tube_start=fmod((double)(mr->tube_angles[0]+((mr->ri.idx_pull_start+cg.add_projections_ffs)*360.0f/cg.n_proj_ffs)),360.0)*pi/180.0f;
+
     int n_half_turns=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)/(cg.n_proj_turn/2);
     
     cudaStream_t stream1,stream2;
@@ -68,7 +72,7 @@ int backproject(struct recon_metadata * mr){
     cudaMallocArray(&cu_proj_2,&channelDesc,cg.n_channels_oversampled,I*cg.n_rows*n_half_turns);
 
     dim3 threads(Bx,By);
-    dim3 blocks(mr->rp.nx/Bx,mr->rp.ny/By,mr->ri.n_slices_recon/K);
+    dim3 blocks(mr->rp.nx/Bx,mr->rp.ny/By,mr->ri.n_slices_block/K);
 
     FILE * outfile;
 
