@@ -42,7 +42,7 @@ struct recon_params configure_recon_params(char * filename){
     char *token;
 
     FILE * prm_file;
-    printf("%s\n",filename);
+    //printf("%s\n",filename);
     prm_file=fopen(filename,"r");
     if (prm_file==NULL){
 	perror("Parameter file not found.");
@@ -160,6 +160,49 @@ struct recon_params configure_recon_params(char * filename){
  	token=strtok(NULL," \t\n%"); 
     } 
 
+    // Perform some sanity checks to make sure that we have read in the "essentials"
+    // Bail if critical values are zero
+    int exit_flag=0;
+    if (prms.n_rows==0){
+	printf("Nrows was not properly set in configuration.  Check parameter file.\n");
+	exit_flag=1;
+    }
+    if (prms.coll_slicewidth==0){
+	printf("CollSlicewidth was not properly set in configuration.  Check parameter file.\n");
+	exit_flag=1;
+    }
+    if (prms.slice_thickness==0){
+	printf("CollSlicewidth was not properly set in configuration.  Check parameter file.\n");
+	exit_flag=1;
+    }
+    if (prms.pitch_value==0){
+	printf("PitchValue was not properly set in configuration.  Check parameter file.\n");
+	exit_flag=1;
+    }
+    if (prms.acq_fov==0){
+	printf("AcqFOV was not properly set in configuration.  Check parameter file.\n");
+	exit_flag=1;
+    }
+    if (prms.recon_fov==0){
+	printf("ReconFOV was not properly set in configuration.  Check parameter file.\n");
+	exit_flag=1;
+    }
+    if (prms.n_readings==0){
+	printf("Readings was not properly set in configuration.  Check parameter file.\n");
+	exit_flag=1;
+    }
+    if (prms.nx==0){
+	printf("Nx was not properly set in configuration.  Check parameter file.\n");
+	exit_flag=1;
+    }
+    if (prms.ny==0){
+	printf("Ny was not properly set in configuration.  Check parameter file.\n");
+	exit_flag=1;
+    }
+    if (exit_flag){
+	exit(1);
+    }
+    
     free(prm_buffer); 
     return prms; 
 } 
@@ -443,19 +486,20 @@ void configure_reconstruction(struct recon_metadata *mr){
     mr->ri.data_begin_pos = mr->table_positions[0];
     mr->ri.data_end_pos   = mr->table_positions[rp.n_readings-1];
     float projection_padding= cg.z_rot * (cg.n_proj_ffs/2+cg.add_projections_ffs+256)/cg.n_proj_ffs;
-    printf("Projection padding is: %.4fmm\n",projection_padding);//debug
     float allowed_begin = mr->ri.data_begin_pos+array_direction*projection_padding;
     float allowed_end   = mr->ri.data_end_pos-array_direction*projection_padding;
-    printf("Allowed recon range: %.2f to %.2f\n",allowed_begin,allowed_end);
-    
+
+    mr->ri.allowed_begin = allowed_begin;
+    mr->ri.allowed_end   = allowed_end;
+
     if (((rp.start_pos>allowed_begin)&&(rp.start_pos>allowed_end))||((rp.start_pos<allowed_begin)&&(rp.start_pos<allowed_end))){
 	printf("Requested reconstruction is outside of allowed data range: %.2f to %.2f\n",allowed_begin,allowed_end);
-	exit(0);
+	exit(1);
     }
     
     if (((rp.end_pos>allowed_begin)&&(rp.end_pos>allowed_end))||((rp.end_pos<allowed_begin)&&(rp.end_pos<allowed_end))){
 	printf("Requested reconstruction is outside of allowed data range: %.2f to %.2f\n",allowed_begin,allowed_end);
-	exit(0);
+	exit(1);
     }
 
     // We always pull projections in the order they occur in the raw
