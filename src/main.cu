@@ -64,7 +64,7 @@ void usage(){
 
 
 int main(int argc, char ** argv){
-    
+
     struct recon_metadata mr;
     memset(&mr,0,sizeof(struct recon_metadata));
 
@@ -101,6 +101,13 @@ int main(int argc, char ** argv){
 	}
     }
 
+    log(mr.flags.verbose,"\n-------------------------\n"
+                         "|      CTBangBang       |\n"
+                         "-------------------------\n\n");
+
+    log(mr.flags.verbose,"CHECKING INPUT PARAMETERS AND CONFIGURING RECONSTRUCTION\n"
+	                 "\n");
+    
     /* --- Get working directory and User's home directory --- */
     struct passwd *pw=getpwuid(getuid());
     const char * homedir=pw->pw_dir;
@@ -165,9 +172,16 @@ int main(int argc, char ** argv){
     log(mr.flags.verbose,"Configuring final reconstruction parameters...\n");
     configure_reconstruction(&mr);
 
+    log(mr.flags.verbose,"Allowed recon range: %.2f to %.2f\n",mr.ri.allowed_begin,mr.ri.allowed_end);
+
+    log(mr.flags.verbose,"\nSTARTING RECONSTRUCTION\n\n");
+    
     for (int i=0;i<mr.ri.n_blocks;i++){
 
 	update_block_info(&mr);
+	
+	log(mr.flags.verbose,"----------------------------\n"
+                             "Working on block %d of %d \n",i+1,mr.ri.n_blocks);
 	
 	// Step 3: Extract raw data from file into memory
 	log(mr.flags.verbose,"Reading raw data from file...\n");
@@ -225,7 +239,8 @@ int main(int argc, char ** argv){
 	
     }
     // Step 6: Save image data to disk (found in setup.cu)
-    log(mr.flags.verbose,"Writing image data to disk...\n");
+    log(mr.flags.verbose,"----------------------------\n\n");
+    log(mr.flags.verbose,"Writing image data to %s/Desktop/%s.img\n",mr.homedir,mr.rp.raw_data_file);
     finish_and_cleanup(&mr);
 
     log(mr.flags.verbose,"Done.\n");
