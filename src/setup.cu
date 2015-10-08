@@ -790,7 +790,6 @@ void finish_and_cleanup(struct recon_metadata * mr){
     free(mr->ctd.image);
     free(mr->tube_angles);
     free(mr->table_positions);
-    
 }
 
 int array_search(float key,double * array,int numel_array,int search_type){
