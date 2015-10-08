@@ -110,6 +110,7 @@ struct flags{
     int set_device;
     int device_number;
     int timing;
+    int benchmark;
 };
     
 struct recon_metadata {
