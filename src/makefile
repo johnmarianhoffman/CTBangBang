@@ -7,7 +7,7 @@ IDIR_RECON=../include/
 IDIR_READER=/home/john/Public/reader_cuda/
 INCLUDES=-I$(IDIR_RECON) -I$(IDIR_READER)
 
-LIBS=$(IDIR_READER)read_raw_file.o -lfftw3 -lm 
+LIBS=$(IDIR_READER)read_raw_file.o -lfftw3 -lm
 
 CFLAGS=$(INCLUDES) -L$(IDIR_READER) -g
 

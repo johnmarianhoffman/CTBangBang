@@ -114,11 +114,12 @@ int main(int argc, char ** argv){
     
     /* --- Get working directory and User's home directory --- */
     struct passwd *pw=getpwuid(getuid());
+    
     const char * homedir=pw->pw_dir;
     strcpy(mr.homedir,homedir);
-    char full_exe_path[4096];
-    char * exe_path=(char*)malloc(4096*sizeof(char));
-    char * exe_name=(char*)malloc(255*sizeof(char));
+    char full_exe_path[4096]={0};
+    char * exe_path=(char*)calloc(4096,sizeof(char));
+    char * exe_name=(char*)calloc(255,sizeof(char));
     readlink("/proc/self/exe",full_exe_path,4096);
     split_path_file(&exe_path,&exe_name,full_exe_path);
     strcpy(mr.install_dir,exe_path);
@@ -133,25 +134,6 @@ int main(int argc, char ** argv){
     cudaGetDeviceCount(&device_count);
     if (device_count==0){
 	mr.flags.no_gpu=1;
-    }
-
-    // --timing cuda events
-    cudaEvent_t start,stop;
-
-    // Set up benchmarking variables and output file if requested
-    char fullpath[4096+255];
-    strcpy(fullpath,mr.homedir);
-    strcat(fullpath,"/Desktop/.tmp_benchmark.bin");
-    FILE * benchmark_file;
-    if (mr.flags.benchmark){
-	benchmark_file=fopen(fullpath,"w");
-	fseek(benchmark_file,0,SEEK_END);
-    }
-    cudaEvent_t bench_master_start,bench_master_stop,bench_start,bench_stop;
-    if (mr.flags.benchmark){
-	cudaEventCreate(&bench_master_start);
-	cudaEventCreate(&bench_master_stop);
-	cudaEventRecord(bench_master_start);
     }
 
     // Configure the GPU/CPU selection
@@ -179,7 +161,26 @@ int main(int argc, char ** argv){
     else{
 	log(mr.flags.verbose,"Working on CPU\n");
     }
-    
+
+    // --timing cuda events
+    cudaEvent_t start,stop;
+
+    // Set up benchmarking variables and output file if requested
+    char fullpath[4096+255];
+    strcpy(fullpath,mr.homedir);
+    strcat(fullpath,"/Desktop/.tmp_benchmark.bin");
+    FILE * benchmark_file;
+    if (mr.flags.benchmark){
+	benchmark_file=fopen(fullpath,"a");
+	fseek(benchmark_file,0,SEEK_END);
+    }
+
+    cudaEvent_t bench_master_start,bench_master_stop,bench_start,bench_stop;
+    if (mr.flags.benchmark){
+	cudaEventCreate(&bench_master_start);
+	cudaEventCreate(&bench_master_stop);
+	cudaEventRecord(bench_master_start);
+    }
     
     /* --- Step 1-3 handled by functions in setup.cu --- */
     // Step 1: Parse input file
@@ -294,6 +295,8 @@ int main(int argc, char ** argv){
 
 	
     }
+
+
     // Step 6: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
     log(mr.flags.verbose,"Writing image data to %s/Desktop/%s.img\n",mr.homedir,mr.rp.raw_data_file);
@@ -307,9 +310,7 @@ int main(int argc, char ** argv){
 	float milli=0.0f;
 	cudaEventElapsedTime(&milli,bench_master_start,bench_master_stop);
 	// write the benchmark data to file
-	printf("we get here\n");
 	fwrite(&milli,sizeof(float),1,benchmark_file);
-	printf("do we get here?\n");
 	cudaEventDestroy(bench_master_start);
 	cudaEventDestroy(bench_master_stop);
 	fclose(benchmark_file);
