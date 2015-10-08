@@ -57,6 +57,7 @@ void usage(){
     printf("    --no-gpu: run program exclusively on CPU. Will override --device=i option.\n");
     printf("  --device=i: run on GPU device number 'i'\n");
     printf("    --timing: Display timing information for each step of the recon process\n");
+    printf(" --benchmark: Writes timing data to file used by benchmarking tool\n");    
     printf("\n");
     printf("Copyright John Hoffman 2015\n\n");
     exit(0);
@@ -96,6 +97,9 @@ int main(int argc, char ** argv){
 	else if (strcmp(argv[i],"--timing")==0){
 	    mr.flags.timing=1;
 	}
+	else if (strcmp(argv[i],"--benchmark")==0){
+	    mr.flags.benchmark=1;
+	} 
 	else{
 	    usage();
 	}
@@ -131,8 +135,26 @@ int main(int argc, char ** argv){
 	mr.flags.no_gpu=1;
     }
 
+    // --timing cuda events
     cudaEvent_t start,stop;
-    
+
+    // Set up benchmarking variables and output file if requested
+    char fullpath[4096+255];
+    strcpy(fullpath,mr.homedir);
+    strcat(fullpath,"/Desktop/.tmp_benchmark.bin");
+    FILE * benchmark_file;
+    if (mr.flags.benchmark){
+	benchmark_file=fopen(fullpath,"w");
+	fseek(benchmark_file,0,SEEK_END);
+    }
+    cudaEvent_t bench_master_start,bench_master_stop,bench_start,bench_stop;
+    if (mr.flags.benchmark){
+	cudaEventCreate(&bench_master_start);
+	cudaEventCreate(&bench_master_stop);
+	cudaEventRecord(bench_master_start);
+    }
+
+    // Configure the GPU/CPU selection
     if (mr.flags.no_gpu==0){
 	int device;
 	if (mr.flags.set_device==1){
@@ -197,6 +219,12 @@ int main(int argc, char ** argv){
 	    cudaEventRecord(start);
 	}
 
+	if (mr.flags.benchmark){
+	    cudaEventCreate(&bench_start);
+	    cudaEventCreate(&bench_stop);
+	    cudaEventRecord(bench_start);
+	}
+
 	if (mr.flags.no_gpu==1)
 	    rebin_filter_cpu(&mr);
 	else
@@ -211,7 +239,17 @@ int main(int argc, char ** argv){
 	    cudaEventDestroy(start);
 	    cudaEventDestroy(stop);
 	}
-	
+	if (mr.flags.benchmark){
+	    cudaEventRecord(bench_stop);
+	    cudaEventSynchronize(bench_stop);
+	    float milli=0.0f;
+	    cudaEventElapsedTime(&milli,bench_start,bench_stop);
+	    // write the benchmark data to file
+	    fwrite(&milli,sizeof(float),1,benchmark_file);
+	    cudaEventDestroy(bench_start);
+	    cudaEventDestroy(bench_stop);
+	}
+
 	/* --- Step 5 handled by functions in backproject.cu ---*/
 	// Step 5: Backproject
 	log(mr.flags.verbose,"Backprojecting...\n");
@@ -221,7 +259,13 @@ int main(int argc, char ** argv){
 	    cudaEventCreate(&stop);
 	    cudaEventRecord(start);
 	}
-    
+
+	if (mr.flags.benchmark){
+	    cudaEventCreate(&bench_start);
+	    cudaEventCreate(&bench_stop);
+	    cudaEventRecord(bench_start);
+	}
+
 	if (mr.flags.no_gpu==1)
 	    backproject_cpu(&mr);
 	else
@@ -237,6 +281,18 @@ int main(int argc, char ** argv){
 	    cudaEventDestroy(stop);
 	}
 	
+	if (mr.flags.benchmark){
+	    cudaEventRecord(bench_stop);
+	    cudaEventSynchronize(bench_stop);
+	    float milli=0.0f;
+	    cudaEventElapsedTime(&milli,bench_start,bench_stop);
+	    // write the benchmark data to file
+	    fwrite(&milli,sizeof(float),1,benchmark_file);
+	    cudaEventDestroy(bench_start);
+	    cudaEventDestroy(bench_stop);
+	}
+
+	
     }
     // Step 6: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
@@ -244,6 +300,20 @@ int main(int argc, char ** argv){
     finish_and_cleanup(&mr);
 
     log(mr.flags.verbose,"Done.\n");
+
+    if (mr.flags.benchmark){
+	cudaEventRecord(bench_master_stop);
+	cudaEventSynchronize(bench_master_stop);
+	float milli=0.0f;
+	cudaEventElapsedTime(&milli,bench_master_start,bench_master_stop);
+	// write the benchmark data to file
+	printf("we get here\n");
+	fwrite(&milli,sizeof(float),1,benchmark_file);
+	printf("do we get here?\n");
+	cudaEventDestroy(bench_master_start);
+	cudaEventDestroy(bench_master_stop);
+	fclose(benchmark_file);
+    }
 
     cudaDeviceReset();
     return 0;
