@@ -46,7 +46,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 
 void log(int verbosity, const char *string, ...);
-void split_path_file(char** p, char** f, char *pf);
+void split_path_file(char**p, char**f, char *pf);
 
 void usage(){
     printf("\n");
@@ -331,7 +331,7 @@ void log(int verbosity, const char *string,...){
     } 
 }
 
-void split_path_file(char** p, char** f, char *pf) {
+void split_path_file(char**p, char**f, char *pf) {
     char *slash = pf, *next;
     while ((next = strpbrk(slash + 1, "\\/"))) slash = next;
     if (pf != slash) slash++;

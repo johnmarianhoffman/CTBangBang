@@ -456,7 +456,7 @@ void configure_reconstruction(struct recon_metadata *mr){
 	    break;}
     }
     fclose(raw_file);
-
+    
     /* --- Figure out how many and which projections to grab --- */
     int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
     int n_slices_block=BLOCK_SLICES;
@@ -480,7 +480,6 @@ void configure_reconstruction(struct recon_metadata *mr){
     int array_direction=fabs(mr->table_positions[100]-mr->table_positions[0])/(mr->table_positions[100]-mr->table_positions[0]);
     int idx_slice_start=array_search(recon_start_pos,mr->table_positions,rp.n_readings,array_direction);
     int idx_slice_end=array_search(recon_end_pos,mr->table_positions,rp.n_readings,array_direction);
-
 
     // Decide if the user has requested a valid range for reconstruction
     mr->ri.data_begin_pos = mr->table_positions[0];
@@ -562,7 +561,7 @@ void update_block_info(recon_metadata *mr){
     int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
 
     int recon_direction=fabs(rp.end_pos-rp.start_pos)/(rp.end_pos-rp.start_pos);
-    if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
+    if (recon_direction!=1&&recon_direction!=-1) // user requests one slice (end_pos==start_pos)
 	recon_direction=1;
     
     float block_slice_start=ri.recon_start_pos+recon_direction*ri.cb.block_idx*rp.coll_slicewidth*ri.n_slices_block;
@@ -722,12 +721,14 @@ void finish_and_cleanup(struct recon_metadata * mr){
 
     float * recon_locations;
     recon_locations=(float*)calloc(n_slices_final,sizeof(float));
+    printf("Recon locations requested:\n");
     for (int i=0;i<n_slices_final;i++){
 	recon_locations[i]=rp.start_pos+recon_direction*i*rp.slice_thickness;
     }
 
     float * raw_recon_locations;
     raw_recon_locations=(float*)calloc(n_raw_images,sizeof(float));
+    printf("raw_recon_locations:\n");
     for (int i=0;i<n_raw_images;i++){
 	raw_recon_locations[i]=ri.recon_start_pos+recon_direction*i*rp.coll_slicewidth;//(rp.start_pos-recon_direction*rp.slice_thickness)+recon_direction*i*rp.coll_slicewidth;
     }
@@ -737,11 +738,11 @@ void finish_and_cleanup(struct recon_metadata * mr){
 
     // Loop over slices
     for (int k=0;k<n_slices_final;k++){
-	int slice_location=recon_locations[k];
-	// Calculate all of the weights for the unaverages slices
+	float slice_location=recon_locations[k];
+	// Calculate all of the weights for the unaveraged slices
 	float sum_weights=0;
 	for (int step=0;step<ri.n_slices_block*ri.n_blocks;step++){
-	    weights[step]=fmax(0,1-fabs(raw_recon_locations[step]-slice_location)/rp.slice_thickness);
+	    weights[step]=fmax(0.0f,1.0f-fabs(raw_recon_locations[step]-slice_location)/rp.slice_thickness);
 	    sum_weights+=weights[step];
 	}
 	
