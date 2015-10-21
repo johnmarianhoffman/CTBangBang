@@ -14,10 +14,10 @@ CFLAGS=$(INCLUDES) -L$(IDIR_READER) -g
 _OBJ=main.o setup.o interp.o rebin_filter.o rebin_filter_cpu.o backproject.o backproject_cpu.o
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 
-all: ../test
+all: ../ctbangbang
 
-../test: $(OBJ)
-	(cd obj && $(NVCC) -L$(IDIR_READER) -o ../../test $(IDIR_READER)read_raw_file.o *.o -lfftw3)
+../ctbangbang: $(OBJ)
+	(cd obj && $(NVCC) -L$(IDIR_READER) -o ../../ctbangbang $(IDIR_READER)read_raw_file.o *.o -lfftw3)
 
 obj/main.o: main.cu $(IDIR_RECON)recon_structs.h $(IDIR_RECON)setup.h $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)backproject.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<

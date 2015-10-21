@@ -6,8 +6,7 @@ all: rebuild
 
 rebuild:
 	mkdir -p src/obj
-	$(MAKE) -C src ../test
-	cp test ctbangbang
+	$(MAKE) -C src ../ctbangbang
 
 install:
 ifneq ($(USER),root)
