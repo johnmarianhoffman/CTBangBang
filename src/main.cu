@@ -106,11 +106,11 @@ int main(int argc, char ** argv){
     }
 
     log(mr.flags.verbose,"\n-------------------------\n"
-                         "|      CTBangBang       |\n"
-                         "-------------------------\n\n");
+	"|      CTBangBang       |\n"
+	"-------------------------\n\n");
 
     log(mr.flags.verbose,"CHECKING INPUT PARAMETERS AND CONFIGURING RECONSTRUCTION\n"
-	                 "\n");
+	"\n");
     
     /* --- Get working directory and User's home directory --- */
     struct passwd *pw=getpwuid(getuid());
@@ -165,16 +165,6 @@ int main(int argc, char ** argv){
     // --timing cuda events
     cudaEvent_t start,stop;
 
-    // Set up benchmarking variables and output file if requested
-    char fullpath[4096+255];
-    strcpy(fullpath,mr.homedir);
-    strcat(fullpath,"/Desktop/.tmp_benchmark.bin");
-    FILE * benchmark_file;
-    if (mr.flags.benchmark){
-	benchmark_file=fopen(fullpath,"a");
-	fseek(benchmark_file,0,SEEK_END);
-    }
-
     cudaEvent_t bench_master_start,bench_master_stop,bench_start,bench_stop;
     if (mr.flags.benchmark){
 	cudaEventCreate(&bench_master_start);
@@ -186,6 +176,25 @@ int main(int argc, char ** argv){
     // Step 1: Parse input file
     log(mr.flags.verbose,"Reading PRM file...\n");
     mr.rp=configure_recon_params(argv[argc-1]);
+
+    /* --- Check for defined output directory, set to desktop if empty --- */
+    strcpy(mr.output_dir,mr.rp.output_dir);
+    if (strcmp(mr.output_dir,"")==0){
+	char fullpath[4096+255];
+	strcpy(fullpath,mr.homedir);
+	strcat(fullpath,"/Desktop/");
+	strcpy(mr.output_dir,fullpath);
+    }
+
+    // Set up benchmarking variables and output file if requested
+    char fullpath[4096+255];
+    strcpy(fullpath,mr.output_dir);
+    strcat(fullpath,".tmp_benchmark.bin");
+    FILE * benchmark_file;
+    if (mr.flags.benchmark){
+	benchmark_file=fopen(fullpath,"a");
+	fseek(benchmark_file,0,SEEK_END);
+    }
 
     // Step 2a: Setup scanner geometry
     log(mr.flags.verbose,"Configuring scanner geometry...\n");
@@ -204,7 +213,7 @@ int main(int argc, char ** argv){
 	update_block_info(&mr);
 	
 	log(mr.flags.verbose,"----------------------------\n"
-                             "Working on block %d of %d \n",i+1,mr.ri.n_blocks);
+	    "Working on block %d of %d \n",i+1,mr.ri.n_blocks);
 	
 	// Step 3: Extract raw data from file into memory
 	log(mr.flags.verbose,"Reading raw data from file...\n");
@@ -298,7 +307,7 @@ int main(int argc, char ** argv){
 
     // Step 6: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
-    log(mr.flags.verbose,"Writing image data to %s/Desktop/%s.img\n",mr.homedir,mr.rp.raw_data_file);
+    log(mr.flags.verbose,"Writing image data to %s%s.img\n",mr.output_dir,mr.rp.raw_data_file);
     finish_and_cleanup(&mr);
 
     log(mr.flags.verbose,"Done.\n");

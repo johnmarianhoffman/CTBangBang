@@ -47,8 +47,6 @@ float W(float q){
 }
 
 int backproject_cpu(struct recon_metadata * mr){
-
-    FILE * outfile; // debugging
     
     struct ct_geom cg=mr->cg;
     struct recon_params rp=mr->rp;
@@ -83,17 +81,6 @@ int backproject_cpu(struct recon_metadata * mr){
 	//Fetch n_half_turns projections for current projection angle
 	for (int kk=0;kk<n_half_turns;kk++){
 	    memcpy(&proj[cg.n_channels_oversampled*cg.n_rows*kk],&mr->ctd.rebin[(i+kk*cg.n_proj_turn/2)*cg.n_channels_oversampled*cg.n_rows],cg.n_channels_oversampled*cg.n_rows*sizeof(float));
-	}
-
-	if (i==0){
-	    outfile=fopen("/home/john/Desktop/proj_data_1.txt","w");
-	    fwrite(proj,sizeof(float),cg.n_channels_oversampled*cg.n_rows*I*n_half_turns,outfile);
-	    fclose(outfile);
-	}
-	if (i==cg.n_proj_turn/4){
-	    outfile=fopen("/home/john/Desktop/proj_data_90.txt","w");
-	    fwrite(proj,sizeof(float),cg.n_channels_oversampled*cg.n_rows*I*n_half_turns,outfile);
-	    fclose(outfile);
 	}
 	
 	// Set our intermediate arrays to zeros
@@ -152,11 +139,6 @@ int backproject_cpu(struct recon_metadata * mr){
 	}
 
     }
-
-    // Debugging:
-    outfile=fopen("/home/john/Desktop/image_data.txt","w");
-    fwrite(h_output,sizeof(float),mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block,outfile);
-    fclose(outfile);
 
     // Copy reconstructed sub-volume into the final full-size reconstructed volume
     long block_offset=(mr->ri.cb.block_idx-1)*mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block;

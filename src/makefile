@@ -4,7 +4,7 @@ CC=gcc
 ODIR=obj
 
 IDIR_RECON=../include/
-INCLUDES=-I$(IDIR_RECON) -I$(IDIR_READER)
+INCLUDES=-I$(IDIR_RECON)
 
 LIBS=-lfftw3 -lm -lctbb_read
 
@@ -16,7 +16,7 @@ OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 all: ../ctbangbang
 
 ../ctbangbang: $(OBJ)
-	(cd obj && $(NVCC) -o ../../ctbangbang *.o $(LIBS))
+	(cd obj && $(NVCC) -g -o ../../ctbangbang *.o $(LIBS))
 
 obj/main.o: main.cu $(IDIR_RECON)recon_structs.h $(IDIR_RECON)setup.h $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)backproject.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<

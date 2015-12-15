@@ -69,6 +69,10 @@ struct recon_params configure_recon_params(char * filename){
 	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%s",prms.raw_data_file);
 	}
+	else if (strcmp(token,"OutputDir:")==0){
+	    token=strtok(NULL," \t\n%");
+	    sscanf(token,"%s",prms.output_dir);
+	}
 	else if (strcmp(token,"Nrows:")==0){
 	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%i",&prms.n_rows);
@@ -477,16 +481,6 @@ void configure_reconstruction(struct recon_metadata *mr){
     }
     fclose(raw_file);
 
-    // Debug
-    FILE *out = fopen("/home/john/Desktop/table_pos.bin", "w");
-    fwrite(mr->table_positions,sizeof(double),rp.n_readings,out);
-    fclose(out);
-
-    // Debug
-    out = fopen("/home/john/Desktop/tube_angles.bin", "w");
-    fwrite(mr->tube_angles,sizeof(float),rp.n_readings,out);
-    fclose(out);
-
     /* --- Figure out how many and which projections to grab --- */
     int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
     int n_slices_block=BLOCK_SLICES;
@@ -731,8 +725,8 @@ void extract_projections(struct recon_metadata * mr){
     // Check "testing" flag, write raw to disk if set
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/raw.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"raw.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.raw,sizeof(float),cg.n_channels*cg.n_rows_raw*mr->ri.n_proj_pull,outfile);
 	fclose(outfile);
@@ -830,7 +824,7 @@ void finish_and_cleanup(struct recon_metadata * mr){
 
     // Write the image data to disk    
     char fullpath[4096+255]={0};
-    sprintf(fullpath,"%s/Desktop/%s.img",mr->homedir,mr->rp.raw_data_file);
+    sprintf(fullpath,"%s%s.img",mr->output_dir,mr->rp.raw_data_file);
     FILE * outfile=fopen(fullpath,"w");
     fwrite(final_image_stack,sizeof(float),rp.nx*rp.ny*n_slices_final,outfile);
     fclose(outfile);
@@ -838,8 +832,8 @@ void finish_and_cleanup(struct recon_metadata * mr){
     // Check "testing" flag, if set write all reconstructed data to disk
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/image_data.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"image_data.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(temp_out,sizeof(float),rp.nx*rp.ny*n_slices_final,outfile);
 	fclose(outfile);

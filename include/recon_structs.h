@@ -24,6 +24,7 @@
 struct recon_params{
     char  raw_data_dir[4096];
     char  raw_data_file[255];
+    char  output_dir[4096];
     int n_rows;
     float coll_slicewidth;
     float start_pos;
@@ -116,6 +117,7 @@ struct flags{
 struct recon_metadata {
     char homedir[4096];
     char install_dir[4096];
+    char output_dir[4096];
     struct flags flags;
     struct recon_params rp;
     struct recon_info ri;
