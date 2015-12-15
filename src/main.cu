@@ -292,7 +292,6 @@ int main(int argc, char ** argv){
 	    cudaEventDestroy(bench_start);
 	    cudaEventDestroy(bench_stop);
 	}
-
 	
     }
 

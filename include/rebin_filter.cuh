@@ -30,8 +30,7 @@ texture<float,cudaTextureType2D,cudaReadModeElementType> tex_d;
 
 __constant__ struct ct_geom d_cg;
 __constant__ struct recon_info d_ri;
-__constant__ float d_filter[3000];
-
+__constant__ float d_filter[3680];
 
 /* --- Helper functions (called by kernels) --- */
 __device__ inline float angle(float x1,float x2,float y1,float y2){
@@ -117,7 +116,7 @@ __global__ void p1_rebin_t(float * output,float da,int row,float * beta_lookup){
     int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*(2*channel)+proj;
 
     da=da;
-    
+   
     float beta = beta_rk(da,0,channel,0);
     beta_lookup[2*channel]=beta;
     float alpha_idx=d_ri.n_ffs*proj-beta*d_cg.n_proj_ffs/(2.0f*pi)-d_alpha_r(da,0)*d_cg.n_proj_ffs/(2.0f*pi);

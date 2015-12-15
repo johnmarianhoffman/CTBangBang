@@ -80,8 +80,17 @@ __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_tur
 		float qhat=(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
 		float q_idx=((qhat+1.0f)/2.0f)*(d_cg.n_rows-1.0f)+d_cg.n_rows*i+k*I*d_cg.n_rows;
 
-		s_t[j]+=tex2D(tex_a,p_idx+0.5,q_idx+0.5)*W(qhat);
-		h_t[j]+=W(qhat);
+		float interpolated_value=tex2D(tex_a,p_idx+0.5,q_idx+0.5)*W(qhat);
+
+		if (!isnan(interpolated_value)){
+		    s_t[j]+=interpolated_value;
+		    h_t[j]+=W(qhat);
+		}
+		else{
+		    h_t[j]=0.0f;
+		}
+		//s_t[j]+=tex2D(tex_a,p_idx+0.5,q_idx+0.5)*W(qhat);
+		//h_t[j]+=W(qhat);
 
 		__syncthreads();
 	    
@@ -142,8 +151,18 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
 		float qhat=(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
 		float q_idx=((qhat+1.0f)/2.0f)*(d_cg.n_rows-1.0f)+d_cg.n_rows*i+k*I*d_cg.n_rows;
 
-		s_t[j]+=tex2D(tex_b,p_idx+0.5,q_idx+0.5)*W(qhat);
-		h_t[j]+=W(qhat);
+		float interpolated_value=tex2D(tex_b,p_idx+0.5,q_idx+0.5)*W(qhat);
+
+		if (!isnan(interpolated_value)){
+		    s_t[j]+=interpolated_value;
+		    h_t[j]+=W(qhat);
+		}
+		else{
+		    h_t[j]=0.0f;
+		}
+		
+		//s_t[j]+=tex2D(tex_b,p_idx+0.5,q_idx+0.5)*W(qhat);
+		//h_t[j]+=W(qhat);
 		    
 		__syncthreads();
 
@@ -152,6 +171,7 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
 	
 	for (int kk=0;kk<K;kk++){
 	    if (h_t[kk]!=0){
+		//if ((h_t[kk]!=0)&&(!isnan(s[kk]))){		
 		s[kk]+=(1.0f/h_t[kk])*s_t[kk];
 	    }
 	}
