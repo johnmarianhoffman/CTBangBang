@@ -89,7 +89,7 @@ struct recon_params configure_recon_params(char * filename){
 	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%f",&prms.end_pos);
 	}
-	else if (strcmp(token,"PitchValue:")==0){
+	else if ((strcmp(token,"PitchValue:")==0)||(strcmp(token,"TableFeed:")==0)){
 	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%f",&prms.pitch_value);
 	}
