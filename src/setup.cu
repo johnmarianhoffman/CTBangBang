@@ -432,7 +432,7 @@ void configure_reconstruction(struct recon_metadata *mr){
 	perror("Raw data file not found.");
 	exit(1);	
     }
-
+    
     switch (rp.file_type){
     case 0:{; // Binary file
 	    for (int i=0;i<rp.n_readings;i++){
@@ -443,8 +443,20 @@ void configure_reconstruction(struct recon_metadata *mr){
     case 1:{; //DefinitionAS Raw
 	    for (int i=0;i<rp.n_readings;i++){
 		mr->tube_angles[i]=ReadPTRTubeAngle(raw_file,i,cg.n_channels,cg.n_rows_raw);
-		mr->table_positions[i]=(double)ReadPTRTablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw)/1000.0;
+		mr->table_positions[i]=((double)ReadPTRTablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw))/1000.0;		
 	    }
+	    
+	    // Clean up the table positions because they tend to
+	    // be wonky at the ends when read directly from the
+	    // raw data
+		
+	    // <0 is decreasing table position >0 is increasing
+	    int direction=(mr->table_positions[100]-mr->table_positions[0])/fabs(mr->table_positions[100]-mr->table_positions[0]);
+	    
+	    for (int i=1;i<rp.n_readings;i++){
+		mr->table_positions[i]=mr->table_positions[0]+(double)cg.z_rot*(((double)i)/(pow(2.0,rp.z_ffs)*pow(2.0,rp.phi_ffs)*(double)cg.n_proj_turn))*(double)direction;
+	    }
+
 	    break;}
     case 2:{; //CTD v1794 (Pre 2015 Sensation64)
 	    for (int i=0;i<rp.n_readings;i++){
@@ -463,8 +475,20 @@ void configure_reconstruction(struct recon_metadata *mr){
 	
 	    for (int i=0;i<rp.n_readings;i++){
 		mr->tube_angles[i]=ReadIMATubeAngle(raw_file,i,cg.n_channels,cg.n_rows_raw,raw_data_subtype,rp.raw_data_offset);
-		mr->table_positions[i]=(double)ReadIMATablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw,raw_data_subtype,rp.raw_data_offset)/1000.0;
+		mr->table_positions[i]=((double)ReadIMATablePosition(raw_file,i,cg.n_channels,cg.n_rows_raw,raw_data_subtype,rp.raw_data_offset))/1000.0;
 	    }
+
+	    // Clean up the table positions because they tend to
+	    // be wonky at the ends when read directly from the
+	    // raw data
+
+	    // <0 is decreasing table position >0 is increasing
+	    int direction=(mr->table_positions[100]-mr->table_positions[0])/fabs(mr->table_positions[100]-mr->table_positions[0]);
+	    
+	    for (int i=1;i<rp.n_readings;i++){
+		mr->table_positions[i]=mr->table_positions[0]+(double)cg.z_rot*(((double)i)/(pow(2.0,rp.z_ffs)*pow(2.0,rp.phi_ffs)*(double)cg.n_proj_turn))*(double)direction;
+	    }
+	    
 	    break;}
     case 5:{; //Force Raw
 	    for (int i=0;i<rp.n_readings;i++){
@@ -515,6 +539,22 @@ void configure_reconstruction(struct recon_metadata *mr){
     mr->ri.allowed_begin = allowed_begin;
     mr->ri.allowed_end   = allowed_end;
 
+    // Check "testing" flag, write raw to disk if set
+    if (mr->flags.testing){
+	char fullpath[4096+255];
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"table_positions.ct_test");
+	FILE * outfile=fopen(fullpath,"w");
+	fwrite(mr->table_positions,sizeof(double),rp.n_readings,outfile);
+	fclose(outfile);
+
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"tube_angles.ct_test");
+	outfile=fopen(fullpath,"w");
+	fwrite(mr->tube_angles,sizeof(float),rp.n_readings,outfile);
+	fclose(outfile);
+    }
+
     if (((rp.start_pos>allowed_begin)&&(rp.start_pos>allowed_end))||((rp.start_pos<allowed_begin)&&(rp.start_pos<allowed_end))){
 	printf("Requested reconstruction is outside of allowed data range: %.2f to %.2f\n",allowed_begin,allowed_end);
 	exit(1);
@@ -562,6 +602,7 @@ void configure_reconstruction(struct recon_metadata *mr){
     idx_pull_end=idx_pull_start+n_proj_pull;
     
     // copy this info into our recon metadata
+    mr->cg.table_direction=array_direction;
     mr->ri.n_ffs=n_ffs;
     mr->ri.n_slices_requested=n_slices_requested;
     mr->ri.n_slices_recon=n_slices_recon;
@@ -847,9 +888,9 @@ void finish_and_cleanup(struct recon_metadata * mr){
     free(weights);
 
     // Free all remaining allocations in metadata
-    free(mr->ctd.raw);
     free(mr->ctd.rebin);
     free(mr->ctd.image);
+    free(mr->ctd.raw);
     free(mr->tube_angles);
     free(mr->table_positions);
 }

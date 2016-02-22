@@ -57,7 +57,7 @@ void usage(){
     printf("    --no-gpu: run program exclusively on CPU. Will override --device=i option.\n");
     printf("  --device=i: run on GPU device number 'i'\n");
     printf("    --timing: Display timing information for each step of the recon process\n");
-    printf(" --benchmark: Writes timing data to file used by benchmarking tool\n");    
+    printf(" --benchmark: Writes timing data to file used by benchmarking tool\n");
     printf("\n");
     printf("Copyright John Hoffman 2015\n\n");
     exit(0);
@@ -99,7 +99,7 @@ int main(int argc, char ** argv){
 	}
 	else if (strcmp(argv[i],"--benchmark")==0){
 	    mr.flags.benchmark=1;
-	} 
+	}
 	else{
 	    usage();
 	}
@@ -185,7 +185,7 @@ int main(int argc, char ** argv){
 	strcat(fullpath,"/Desktop/");
 	strcpy(mr.output_dir,fullpath);
     }
-
+    
     // Set up benchmarking variables and output file if requested
     char fullpath[4096+255];
     strcpy(fullpath,mr.output_dir);
@@ -207,9 +207,20 @@ int main(int argc, char ** argv){
     log(mr.flags.verbose,"Allowed recon range: %.2f to %.2f\n",mr.ri.allowed_begin,mr.ri.allowed_end);
 
     log(mr.flags.verbose,"\nSTARTING RECONSTRUCTION\n\n");
+
+    float *start_point=mr.ctd.raw;
     
     for (int i=0;i<mr.ri.n_blocks;i++){
 
+	// debug
+
+	if (mr.ctd.raw!=start_point){
+	    perror("Pointer went bad");
+	}
+	
+	// gubed
+
+	
 	update_block_info(&mr);
 	
 	log(mr.flags.verbose,"----------------------------\n"

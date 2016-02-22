@@ -77,7 +77,7 @@ __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_tur
 	    
 		float ray_pos=(d_cg.z_rot*(theta-asin(phat/d_cg.r_f))/(2.0f*pi));
 		float lhat=sqrt(pow(d_cg.r_f,2.0f)-pow(phat,2.0f))-x*cos(theta)-y*sin(theta);
-		float qhat=(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
+		float qhat=-d_cg.table_direction*(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
 		float q_idx=((qhat+1.0f)/2.0f)*(d_cg.n_rows-1.0f)+d_cg.n_rows*i+k*I*d_cg.n_rows;
 
 		float interpolated_value=tex2D(tex_a,p_idx+0.5,q_idx+0.5)*W(qhat);
@@ -148,7 +148,7 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
 	    
 		float ray_pos=(d_cg.z_rot*(theta-asin(phat/d_cg.r_f))/(2.0f*pi));
 		float lhat=sqrt(pow(d_cg.r_f,2.0f)-pow(phat,2.0f))-x*cos(theta)-y*sin(theta);
-		float qhat=(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
+		float qhat=-d_cg.table_direction*(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
 		float q_idx=((qhat+1.0f)/2.0f)*(d_cg.n_rows-1.0f)+d_cg.n_rows*i+k*I*d_cg.n_rows;
 
 		float interpolated_value=tex2D(tex_b,p_idx+0.5,q_idx+0.5)*W(qhat);

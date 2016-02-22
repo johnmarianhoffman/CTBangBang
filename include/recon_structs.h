@@ -102,6 +102,10 @@ struct ct_geom{
     int add_projections_ffs;
     int reverse_row_interleave;
     int reverse_channel_interleave;
+
+    // -1 table positions decreasing (SciDirTableIn);
+    //  1 table positions increasing (SciDirTableOut);
+    int table_direction;
 };
 
 struct flags{
