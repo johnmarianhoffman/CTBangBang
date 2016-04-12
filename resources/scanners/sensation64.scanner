@@ -4,11 +4,11 @@
 
 RSrcToIso:		570.0
 RSrcToDet:		1040.0
-AnodeAngle:		0.20944
+AnodeAngle:		0.1222
 FanAngleInc:		0.00135
-ThetaCone:		0.01731
+ThetaCone:		0.031576
 CentralChannel:		334.25
 NProjTurn:		1160
 NChannels:		672
-ReverseRowInterleave:	0
+ReverseRowInterleave:	1
 ReverseChanInterleave:	0

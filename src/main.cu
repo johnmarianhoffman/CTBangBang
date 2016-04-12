@@ -30,10 +30,12 @@
 
 #include <recon_structs.h>
 #include <setup.h>
+#include <preprocessing.h>
 #include <rebin_filter.h>
 #include <rebin_filter_cpu.h>
 #include <backproject.h>
 #include <backproject_cpu.h>
+
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -57,7 +59,7 @@ void usage(){
     printf("    --no-gpu: run program exclusively on CPU. Will override --device=i option.\n");
     printf("  --device=i: run on GPU device number 'i'\n");
     printf("    --timing: Display timing information for each step of the recon process\n");
-    printf(" --benchmark: Writes timing data to file used by benchmarking tool\n");    
+    printf(" --benchmark: Writes timing data to file used by benchmarking tool\n");
     printf("\n");
     printf("Copyright John Hoffman 2015\n\n");
     exit(0);
@@ -99,18 +101,18 @@ int main(int argc, char ** argv){
 	}
 	else if (strcmp(argv[i],"--benchmark")==0){
 	    mr.flags.benchmark=1;
-	} 
+	}
 	else{
 	    usage();
 	}
     }
 
     log(mr.flags.verbose,"\n-------------------------\n"
-                         "|      CTBangBang       |\n"
-                         "-------------------------\n\n");
+	"|      CTBangBang       |\n"
+	"-------------------------\n\n");
 
     log(mr.flags.verbose,"CHECKING INPUT PARAMETERS AND CONFIGURING RECONSTRUCTION\n"
-	                 "\n");
+	"\n");
     
     /* --- Get working directory and User's home directory --- */
     struct passwd *pw=getpwuid(getuid());
@@ -165,16 +167,6 @@ int main(int argc, char ** argv){
     // --timing cuda events
     cudaEvent_t start,stop;
 
-    // Set up benchmarking variables and output file if requested
-    char fullpath[4096+255];
-    strcpy(fullpath,mr.homedir);
-    strcat(fullpath,"/Desktop/.tmp_benchmark.bin");
-    FILE * benchmark_file;
-    if (mr.flags.benchmark){
-	benchmark_file=fopen(fullpath,"a");
-	fseek(benchmark_file,0,SEEK_END);
-    }
-
     cudaEvent_t bench_master_start,bench_master_stop,bench_start,bench_stop;
     if (mr.flags.benchmark){
 	cudaEventCreate(&bench_master_start);
@@ -187,6 +179,25 @@ int main(int argc, char ** argv){
     log(mr.flags.verbose,"Reading PRM file...\n");
     mr.rp=configure_recon_params(argv[argc-1]);
 
+    /* --- Check for defined output directory, set to desktop if empty --- */
+    strcpy(mr.output_dir,mr.rp.output_dir);
+    if (strcmp(mr.output_dir,"")==0){
+	char fullpath[4096+255];
+	strcpy(fullpath,mr.homedir);
+	strcat(fullpath,"/Desktop/");
+	strcpy(mr.output_dir,fullpath);
+    }
+    
+    // Set up benchmarking variables and output file if requested
+    char fullpath[4096+255];
+    strcpy(fullpath,mr.output_dir);
+    strcat(fullpath,".tmp_benchmark.bin");
+    FILE * benchmark_file;
+    if (mr.flags.benchmark){
+	benchmark_file=fopen(fullpath,"a");
+	fseek(benchmark_file,0,SEEK_END);
+    }
+
     // Step 2a: Setup scanner geometry
     log(mr.flags.verbose,"Configuring scanner geometry...\n");
     mr.cg=configure_ct_geom(&mr);
@@ -198,18 +209,32 @@ int main(int argc, char ** argv){
     log(mr.flags.verbose,"Allowed recon range: %.2f to %.2f\n",mr.ri.allowed_begin,mr.ri.allowed_end);
 
     log(mr.flags.verbose,"\nSTARTING RECONSTRUCTION\n\n");
+
+    float *start_point=mr.ctd.raw;
     
     for (int i=0;i<mr.ri.n_blocks;i++){
 
+	// debug
+
+	if (mr.ctd.raw!=start_point){
+	    perror("Pointer went bad");
+	}
+	
+	// gubed
+
+	
 	update_block_info(&mr);
 	
 	log(mr.flags.verbose,"----------------------------\n"
-                             "Working on block %d of %d \n",i+1,mr.ri.n_blocks);
+	    "Working on block %d of %d \n",i+1,mr.ri.n_blocks);
 	
 	// Step 3: Extract raw data from file into memory
 	log(mr.flags.verbose,"Reading raw data from file...\n");
 	extract_projections(&mr);
-    
+
+	log(mr.flags.verbose,"Running adaptive filtering...\n");
+	adaptive_filter_kk(&mr);
+	
 	/* --- Step 4 handled by functions in rebin_filter.cu --- */
 	// Step 4: Rebin and filter
 	log(mr.flags.verbose,"Rebinning and filtering data...\n");
@@ -292,14 +317,13 @@ int main(int argc, char ** argv){
 	    cudaEventDestroy(bench_start);
 	    cudaEventDestroy(bench_stop);
 	}
-
 	
     }
 
 
     // Step 6: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
-    log(mr.flags.verbose,"Writing image data to %s/Desktop/%s.img\n",mr.homedir,mr.rp.raw_data_file);
+    log(mr.flags.verbose,"Writing image data to %s%s.img\n",mr.output_dir,mr.rp.raw_data_file);
     finish_and_cleanup(&mr);
 
     log(mr.flags.verbose,"Done.\n");

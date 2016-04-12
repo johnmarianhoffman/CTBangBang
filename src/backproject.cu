@@ -74,8 +74,6 @@ int backproject(struct recon_metadata * mr){
     dim3 threads(Bx,By);
     dim3 blocks(mr->rp.nx/Bx,mr->rp.ny/By,mr->ri.n_slices_block/K);
 
-    FILE * outfile;
-
     for (int i=0;i<cg.n_proj_turn/2;i+=I*2){
 	for (int k=0;k<n_half_turns;k++){
 	    cudaMemcpyToArrayAsync(cu_proj_1,0,k*I*cg.n_rows,&mr->ctd.rebin[(i+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream1);
@@ -97,10 +95,6 @@ int backproject(struct recon_metadata * mr){
 
     long block_offset=(mr->ri.cb.block_idx-1)*mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block;
     cudaMemcpy(&mr->ctd.image[block_offset],d_output,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block*sizeof(float),cudaMemcpyDeviceToHost);
-
-    outfile=fopen("/home/john/Desktop/image_data.txt","w");
-    fwrite(mr->ctd.image,sizeof(float),mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon,outfile);
-    fclose(outfile);
 
     cudaFree(d_output);
     cudaFreeArray(cu_proj_1);
