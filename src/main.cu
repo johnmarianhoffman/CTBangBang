@@ -30,10 +30,12 @@
 
 #include <recon_structs.h>
 #include <setup.h>
+#include <preprocessing.h>
 #include <rebin_filter.h>
 #include <rebin_filter_cpu.h>
 #include <backproject.h>
 #include <backproject_cpu.h>
+
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -229,7 +231,10 @@ int main(int argc, char ** argv){
 	// Step 3: Extract raw data from file into memory
 	log(mr.flags.verbose,"Reading raw data from file...\n");
 	extract_projections(&mr);
-    
+
+	log(mr.flags.verbose,"Running adaptive filtering...\n");
+	adaptive_filter_kk(&mr);
+	
 	/* --- Step 4 handled by functions in rebin_filter.cu --- */
 	// Step 4: Rebin and filter
 	log(mr.flags.verbose,"Rebinning and filtering data...\n");

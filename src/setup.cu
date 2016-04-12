@@ -156,6 +156,22 @@ struct recon_params configure_recon_params(char * filename){
 	else if (strcmp(token,"TubeStartAngle:")==0){ 
  	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%f",&prms.tube_start_angle); 
+ 	}
+	else if (strcmp(token,"TableDir:")==0){
+	    // Note, this parameter is ignored if not using a binary file
+	    char tmp[4096]={0};
+ 	    token=strtok(NULL," \t\n%"); 
+ 	    sscanf(token,"%s",tmp);
+	    if (strcmp(tmp,"out")==0){
+		prms.table_dir=1;
+	    }
+	    else if (strcmp(tmp,"in")==0){
+		prms.table_dir=-1;
+	    }
+	    else{
+		printf("WARNING: TableDir parameter must be 'in' or 'out' (no quotes).  Defaulting to 'out'.\n");
+		prms.table_dir=1;
+	    }
  	} 
  	else { 
  	    //token=strtok(NULL," \t\n%"); 
@@ -203,6 +219,10 @@ struct recon_params configure_recon_params(char * filename){
 	printf("Ny was not properly set in configuration.  Check parameter file.\n");
 	exit_flag=1;
     }
+    if (prms.file_type==0&&prms.table_dir==0){
+	printf("WARNING: 'TableDir' parameter unset.  Defaulting to 'out'.\n");
+	prms.table_dir=1;
+    }
     if (exit_flag){
 	exit(1);
     }
@@ -219,6 +239,8 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
     
     char * cg_buffer;
     char * token;
+
+    cg.table_direction=rp.table_dir;
 
     char path[4096+255];
     int scanner=-1;
@@ -437,7 +459,12 @@ void configure_reconstruction(struct recon_metadata *mr){
     case 0:{; // Binary file
 	    for (int i=0;i<rp.n_readings;i++){
 		mr->tube_angles[i]=fmod(((360.0f/cg.n_proj_ffs)*i+rp.tube_start_angle),360.0f);
-		mr->table_positions[i]=((float)rp.n_readings/(float)cg.n_proj_ffs)*cg.z_rot-(float)i*cg.z_rot/(float)cg.n_proj_ffs;
+		if (cg.table_direction==-1)
+		    mr->table_positions[i]=((float)rp.n_readings/(float)cg.n_proj_ffs)*cg.z_rot-(float)i*cg.z_rot/(float)cg.n_proj_ffs;
+		else if (cg.table_direction==1)
+		    mr->table_positions[i]=0.0f+(float)i*cg.z_rot/(float)cg.n_proj_ffs;
+		else 
+		    mr->table_positions[i]=0.0f+(float)i*cg.z_rot/(float)cg.n_proj_ffs;
 	    }	
 	    break;}
     case 1:{; //DefinitionAS Raw
@@ -888,11 +915,11 @@ void finish_and_cleanup(struct recon_metadata * mr){
     free(weights);
 
     // Free all remaining allocations in metadata
-    free(mr->ctd.rebin);
-    free(mr->ctd.image);
-    free(mr->ctd.raw);
-    free(mr->tube_angles);
-    free(mr->table_positions);
+    //free(mr->ctd.rebin);
+    //free(mr->ctd.image);
+    //free(mr->ctd.raw);
+    // free(mr->tube_angles);
+    //free(mr->table_positions);
 }
 
 int array_search(float key,double * array,int numel_array,int search_type){

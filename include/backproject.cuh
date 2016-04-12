@@ -55,8 +55,12 @@ __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_tur
     int xi=threadIdx.x+blockIdx.x*blockDim.x;
     int yi=threadIdx.y+blockIdx.y*blockDim.y;
     int zi=K*(threadIdx.z+blockIdx.z*blockDim.z);
-    
-    float x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
+
+    float x;
+    if (d_cg.table_direction==-1)
+        x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
+    else
+	x=(d_rp.recon_fov/d_rp.nx)*(-(float)xi+(d_rp.nx-1)/2.0f)+d_rp.x_origin;
     float y=(d_rp.recon_fov/d_rp.ny)*((float)yi-(d_rp.ny-1)/2.0f)+d_rp.y_origin;
     float z=zi*d_rp.coll_slicewidth+d_cg.z_rot/2.0f+d_cg.z_rot*tube_start/(2.0f*pi);
     
@@ -126,8 +130,12 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
     int xi=threadIdx.x+blockIdx.x*blockDim.x;
     int yi=threadIdx.y+blockIdx.y*blockDim.y;
     int zi=K*(threadIdx.z+blockIdx.z*blockDim.z);
-    
-    float x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
+
+    float x;
+    if (d_cg.table_direction==-1)
+	x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
+    else
+	x=(d_rp.recon_fov/d_rp.nx)*(-(float)xi+(d_rp.nx-1)/2.0f)+d_rp.x_origin;
     float y=(d_rp.recon_fov/d_rp.ny)*((float)yi-(d_rp.ny-1)/2.0f)+d_rp.y_origin;
     float z=zi*d_rp.coll_slicewidth+d_cg.z_rot/2.0f+d_cg.z_rot*tube_start/(2.0f*pi);
     

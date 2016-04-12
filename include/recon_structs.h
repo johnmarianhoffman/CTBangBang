@@ -44,6 +44,7 @@ struct recon_params{
     int file_type;
     int file_subtype;
     int raw_data_offset;
+    int table_dir;
     unsigned int nx;
     unsigned int ny;
 };

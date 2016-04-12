@@ -10,7 +10,7 @@ LIBS=-lfftw3 -lm -lctbb_read
 
 CFLAGS=$(INCLUDES) -g
 
-_OBJ=main.o setup.o interp.o rebin_filter.o rebin_filter_cpu.o backproject.o backproject_cpu.o
+_OBJ=main.o setup.o interp.o preprocessing.o rebin_filter.o rebin_filter_cpu.o backproject.o backproject_cpu.o
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 
 all: ../ctbangbang
@@ -26,6 +26,9 @@ obj/setup.o: setup.cu $(IDIR_RECON)setup.h
 
 obj/interp.o: interp.cu $(IDIR_RECON)interp.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<
+
+obj/preprocessing.o: preprocessing.cu $(IDIR_RECON)preprocessing.h $(IDIR_RECON)preprocessing.cuh
+	$(NVCC) $(CFLAGS) -c -o $@ $<	
 
 obj/rebin_filter.o: rebin_filter.cu $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)rebin_filter.cuh 
 	$(NVCC) $(CFLAGS) -c -o $@ $<
