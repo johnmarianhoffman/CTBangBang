@@ -29,6 +29,7 @@ struct recon_params{
     float coll_slicewidth;
     float start_pos;
     float end_pos;
+    int n_slices;  // overrides end_pos to give user a requested number of slices
     float slice_thickness;
     float tube_start_angle;
     float pitch_value;
@@ -45,6 +46,7 @@ struct recon_params{
     int file_subtype;
     int raw_data_offset;
     int table_dir;
+    float adaptive_filtration_s;
     unsigned int nx;
     unsigned int ny;
 };

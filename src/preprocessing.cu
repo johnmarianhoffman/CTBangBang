@@ -35,6 +35,19 @@ void float_debug(float * array, size_t numel, const char * filename){
 /* Adaptive filtering from Kachelreiss and Kalendar 2001 */
 int adaptive_filter_kk(struct recon_metadata * mr){
 
+//    int N=5;
+//    for (int i=0; i<N; i++){
+//	for (int j=0; j<N; j++){
+//	    for (int k=0; k<N; k++){
+//		int T_ij=(ceil(N/2)-fabs(i-ceil(N/2)))+(ceil(N/2)-fabs(j-ceil(N/2)))+(ceil(N/2)-fabs(k-ceil(N/2)))+1; 
+//		printf("%d,",T_ij);
+//	    }
+//	    printf("\n");
+//	}
+//	printf("\n\n");
+//    }
+//    exit(0);
+    
     // Save some typing
     struct ct_geom cg=mr->cg;
     struct recon_info ri=mr->ri;
@@ -57,9 +70,8 @@ int adaptive_filter_kk(struct recon_metadata * mr){
 
     extract_sup<<<extract_sup_blocks,extract_sup_threads>>>(d_raw,d_sup);
 
-    cudaMemcpy(h_sup,d_sup,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
-
-    float_debug(h_sup,ri.n_proj_pull,"/home/john/Desktop/h_sup.txt");
+    //cudaMemcpy(h_sup,d_sup,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
+    //float_debug(h_sup,ri.n_proj_pull,"/home/john/Desktop/h_sup.txt");
     
     // Smooth the array of maxima
     float * d_sup_smooth;
@@ -71,9 +83,8 @@ int adaptive_filter_kk(struct recon_metadata * mr){
 
     smooth_sup<<<extract_sup_blocks,extract_sup_threads>>>(d_sup,d_sup_smooth);
 
-    cudaMemcpy(h_sup_smooth,d_sup_smooth,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
-
-    float_debug(h_sup_smooth,ri.n_proj_pull,"/home/john/Desktop/h_sup_smooth.txt");
+    //cudaMemcpy(h_sup_smooth,d_sup_smooth,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
+    //float_debug(h_sup_smooth,ri.n_proj_pull,"/home/john/Desktop/h_sup_smooth.txt");
 
     // Calculate eccentricity as a function of projection idx
     float * d_ecc;
@@ -90,9 +101,8 @@ int adaptive_filter_kk(struct recon_metadata * mr){
 
     eccentricity<<<ecc_blocks,ecc_threads>>>(d_sup_smooth,d_ecc,d_p_max,d_p_min);
 
-    cudaMemcpy(h_ecc,d_ecc,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
-
-    float_debug(h_ecc,ri.n_proj_pull,"/home/john/Desktop/h_ecc_trunc.txt");
+    //cudaMemcpy(h_ecc,d_ecc,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
+    //float_debug(h_ecc,ri.n_proj_pull,"/home/john/Desktop/h_ecc_trunc.txt");
 
     // Find thresholds
     float * d_threshold;
@@ -101,16 +111,14 @@ int adaptive_filter_kk(struct recon_metadata * mr){
 
     dim3 threshold_threads(128,1,1);
     dim3 threshold_blocks(ri.n_proj_pull/128,1,1);
-
-    find_thresholds<<<threshold_blocks,threshold_threads>>>(d_ecc,d_sup_smooth,d_p_max,d_p_min,d_threshold);
     
-    cudaMemcpy(h_threshold,d_threshold,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
-
-    float_debug(h_threshold,ri.n_proj_pull,"/home/john/Desktop/h_threshold.txt");
+    find_thresholds<<<threshold_blocks,threshold_threads>>>(mr->rp.adaptive_filtration_s,d_ecc,d_sup_smooth,d_p_max,d_p_min,d_threshold);
+    
+    //cudaMemcpy(h_threshold,d_threshold,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
+    //float_debug(h_threshold,ri.n_proj_pull,"/home/john/Desktop/h_threshold.txt");
 
     // Filter the raw projection data
     float * d_filtered_raw;
-    float * h_filtered_raw=(float *)calloc(cg.n_channels*cg.n_rows_raw*ri.n_proj_pull,sizeof(float));
     cudaMalloc(&d_filtered_raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull*sizeof(float));
     
     dim3 filter_threads(128,1,1);
@@ -118,15 +126,10 @@ int adaptive_filter_kk(struct recon_metadata * mr){
     
     filter_projections<<<filter_blocks,filter_threads>>>(d_raw,d_threshold,d_filtered_raw);
 
-    cudaMemcpy(h_filtered_raw,d_filtered_raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
+    // Copy filtered raw data back into raw ct data array
+    cudaMemcpy(mr->ctd.raw,d_filtered_raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
     
-    //float_debug(h_filtered_raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull,"/home/john/Desktop/h_filtered.txt");
-    //float_debug(mr->ctd.raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull,"/home/john/Desktop/h_raw.txt");
-
-    // Copy filtered raw data back to raw array
-    for (int i=0; i<cg.n_channels*cg.n_rows_raw*ri.n_proj_pull; i++){
-	mr->ctd.raw[i]=h_filtered_raw[i];
-    }
+    float_debug(mr->ctd.raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull,"/home/john/Desktop/h_raw.txt");
     
     cudaFree(d_sup);
     cudaFree(d_sup_smooth);
@@ -139,7 +142,6 @@ int adaptive_filter_kk(struct recon_metadata * mr){
     free(h_sup);
     free(h_sup_smooth);
     free(h_threshold);
-    free(h_filtered_raw);
     free(h_ecc);
 	       
     return 0;

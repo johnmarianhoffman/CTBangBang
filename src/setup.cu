@@ -157,6 +157,19 @@ struct recon_params configure_recon_params(char * filename){
  	    token=strtok(NULL," \t\n%"); 
  	    sscanf(token,"%f",&prms.tube_start_angle); 
  	}
+	else if (strcmp(token,"TubeStartAngle:")==0){ 
+ 	    token=strtok(NULL," \t\n%"); 
+ 	    sscanf(token,"%f",&prms.tube_start_angle); 
+ 	}
+	else if (strcmp(token,"AdaptiveFiltration:")==0){ 
+ 	    token=strtok(NULL," \t\n%"); 
+ 	    sscanf(token,"%f",&prms.adaptive_filtration_s); 
+ 	}
+	else if (strcmp(token,"NSlices:")==0){ 
+ 	    token=strtok(NULL," \t\n%"); 
+ 	    sscanf(token,"%i",&prms.n_slices); 
+ 	}
+
 	else if (strcmp(token,"TableDir:")==0){
 	    // Note, this parameter is ignored if not using a binary file
 	    char tmp[4096]={0};
@@ -533,13 +546,19 @@ void configure_reconstruction(struct recon_metadata *mr){
     fclose(raw_file);
 
     /* --- Figure out how many and which projections to grab --- */
+
     int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
     int n_slices_block=BLOCK_SLICES;
-    
+
     int recon_direction=fabs(rp.end_pos-rp.start_pos)/(rp.end_pos-rp.start_pos);
     if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
 	recon_direction=1;
 
+    // override end_pos if user has set the number of slices
+    if (rp.n_slices!=0){
+	rp.end_pos=rp.start_pos+(rp.n_slices-1)*rp.slice_thickness;
+    }
+    
     float recon_start_pos = rp.start_pos - recon_direction*rp.slice_thickness;
     float recon_end_pos   = rp.end_pos   + recon_direction*rp.slice_thickness;//rp.start_pos+recon_direction*(n_slices_recon-1)*rp.coll_slicewidth;
 
@@ -630,6 +649,7 @@ void configure_reconstruction(struct recon_metadata *mr){
     
     // copy this info into our recon metadata
     mr->cg.table_direction=array_direction;
+    mr->rp.end_pos=rp.end_pos;
     mr->ri.n_ffs=n_ffs;
     mr->ri.n_slices_requested=n_slices_requested;
     mr->ri.n_slices_recon=n_slices_recon;

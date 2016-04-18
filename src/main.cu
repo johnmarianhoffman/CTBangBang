@@ -221,7 +221,6 @@ int main(int argc, char ** argv){
 	}
 	
 	// gubed
-
 	
 	update_block_info(&mr);
 	
@@ -232,8 +231,28 @@ int main(int argc, char ** argv){
 	log(mr.flags.verbose,"Reading raw data from file...\n");
 	extract_projections(&mr);
 
+	/* --- Step 3.5: Adaptive filtration handled by preprocessing.cu ---*/
+	// Step 3.5: Adaptive filtration of raw data to reduce streak artifacts
 	log(mr.flags.verbose,"Running adaptive filtering...\n");
+
+	if (mr.flags.timing){
+	    cudaEventCreate(&start);
+	    cudaEventCreate(&stop);
+	    cudaEventRecord(start);
+	}
+
 	adaptive_filter_kk(&mr);
+
+	if (mr.flags.timing){
+	    cudaEventRecord(stop);
+	    cudaEventSynchronize(stop);
+	    float milli=0.0f;
+	    cudaEventElapsedTime(&milli,start,stop);
+	    printf("%.2f ms for adaptive filtration\n",milli);
+	    cudaEventDestroy(start);
+	    cudaEventDestroy(stop);
+	}
+
 	
 	/* --- Step 4 handled by functions in rebin_filter.cu --- */
 	// Step 4: Rebin and filter

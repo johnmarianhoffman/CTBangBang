@@ -21,8 +21,10 @@
 #include <recon_structs.h>
 
 #define F_MAX 0.03f
-#define S 0.0f
+#define S 1.0f
 #define pi 3.1415368979f
+
+#define __FILTER_3D__ //__FILTER_3D__
 
 __constant__ struct ct_geom d_cg;
 __constant__ struct recon_info d_ri;
@@ -57,6 +59,11 @@ __device__ float rhs(float * array,int start_idx, int max_idx,int numel_range,fl
     }
 
     return (1.0f/pi)*(float)sum*(1.0f/(float)d_cg.n_proj_ffs);
+}
+
+__device__ float triangle_3d(int N, int i, int j, int k){
+    int cN2=(int) ceilf((float)N/2.0f);
+    return (float)((cN2-abs(i-cN2))+(cN2-abs(j-cN2))+(cN2-abs(k-cN2))+1); 
 }
 
 __global__ void extract_sup(float * raw,float * sup){
@@ -157,7 +164,7 @@ __global__ void eccentricity(float * sup_smooth, float * ecc,float * max_array,f
 
 __global__ void eccentricity_rescale(float * ecc, float * ecc_rescale){}
 
-__global__ void find_thresholds(float * ecc_rescale,float * sup_smooth, float * max_array, float * min_array,float * thresholds){
+__global__ void find_thresholds(float strength,float * ecc_rescale,float * sup_smooth, float * max_array, float * min_array,float * thresholds){
     int proj_idx=threadIdx.x+blockIdx.x*blockDim.x;
     
     // 180 degree value pulled from Kachelreiss and Kalendar 2001
@@ -172,7 +179,7 @@ __global__ void find_thresholds(float * ecc_rescale,float * sup_smooth, float * 
     float lower_bound=min_array[proj_idx];
     float upper_bound=max_array[proj_idx];
     float T=(max_array[proj_idx]+min_array[proj_idx])/2.0f;
-    float lhs_alpha=F_MAX*S*ecc_rescale[proj_idx];
+    float lhs_alpha=F_MAX*strength*ecc_rescale[proj_idx];
     float rhs_alpha=rhs(sup_smooth,proj_idx-offset,max_idx,n_range,T);
     
     // Binary search over 
@@ -201,6 +208,7 @@ __global__ void find_thresholds(float * ecc_rescale,float * sup_smooth, float * 
 __global__ void filter_projections(float * raw,float * thresholds, float * filtered_raw){
 
     size_t proj_idx=threadIdx.x+blockIdx.x*blockDim.x;
+    int n_proj=d_ri.n_proj_pull;
     int n_channels=d_cg.n_channels;
     int n_rows_raw=d_cg.n_rows_raw;
     size_t proj_size=n_channels*n_rows_raw;
@@ -208,7 +216,10 @@ __global__ void filter_projections(float * raw,float * thresholds, float * filte
 
     float T=thresholds[proj_idx];
 
+#ifndef __FILTER_3D__
     float triangle_2d[25]={1,2,3,2,1, 2,3,4,3,2, 3,4,5,4,3, 2,3,4,3,2, 1,2,3,2,1};
+#endif
+
     
     for (int i=0; i<n_channels; i++){
 	for (int j=0; j<n_rows_raw; j++){
@@ -217,6 +228,33 @@ __global__ void filter_projections(float * raw,float * thresholds, float * filte
 
 	    if (raw[idx]>T){
 		
+#ifdef __FILTER_3D__
+		// 3D Filter
+		float norm=0.0f;
+		float filtered_val=0.0f;
+		for (int ii=0;ii<5;ii++){//loop over filter channels
+		    for (int jj=0;jj<5;jj++){//loop over filter rows
+			for (int kk=0;kk<5;kk++){//loop over filter projections
+
+			    int f_row_idx=j+jj-2; // proj_row_idx+filter_row_idx - offset
+			    int f_channel_idx=i+ii-2;
+			    int f_proj_idx=proj_idx+kk-2;
+			    
+			    if ((f_row_idx<0||f_channel_idx<0||f_proj_idx<0)||
+				(f_row_idx>=n_rows_raw||f_channel_idx>=n_channels||f_proj_idx>=n_proj)){
+				continue;
+			    }
+			    else{
+				size_t idx_tmp=proj_size*f_proj_idx+row_size*f_row_idx+f_channel_idx;
+				float triangle_val=triangle_3d(5,ii,jj,kk);
+				norm+=triangle_val;
+				filtered_val+=raw[idx_tmp]*triangle_val;
+			    }			    
+			}
+		    }
+		}
+		
+#else
 		// 2D filter
 		float norm=0.0f;
 		float filtered_val=0.0f;
@@ -235,7 +273,7 @@ __global__ void filter_projections(float * raw,float * thresholds, float * filte
 			}
 		    }
 		}
-		
+#endif
 		filtered_raw[idx]=(1.0f/norm)*filtered_val;
 	    }
 	    else{
@@ -243,4 +281,5 @@ __global__ void filter_projections(float * raw,float * thresholds, float * filte
 	    }
 	}
     }
+
 } 
