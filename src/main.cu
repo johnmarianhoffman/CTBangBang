@@ -209,18 +209,8 @@ int main(int argc, char ** argv){
     log(mr.flags.verbose,"Allowed recon range: %.2f to %.2f\n",mr.ri.allowed_begin,mr.ri.allowed_end);
 
     log(mr.flags.verbose,"\nSTARTING RECONSTRUCTION\n\n");
-
-    float *start_point=mr.ctd.raw;
     
     for (int i=0;i<mr.ri.n_blocks;i++){
-
-	// debug
-
-	if (mr.ctd.raw!=start_point){
-	    perror("Pointer went bad");
-	}
-	
-	// gubed
 	
 	update_block_info(&mr);
 	
@@ -253,7 +243,6 @@ int main(int argc, char ** argv){
 	    cudaEventDestroy(stop);
 	}
 
-	
 	/* --- Step 4 handled by functions in rebin_filter.cu --- */
 	// Step 4: Rebin and filter
 	log(mr.flags.verbose,"Rebinning and filtering data...\n");
@@ -294,7 +283,7 @@ int main(int argc, char ** argv){
 	    cudaEventDestroy(bench_start);
 	    cudaEventDestroy(bench_stop);
 	}
-
+	
 	/* --- Step 5 handled by functions in backproject.cu ---*/
 	// Step 5: Backproject
 	log(mr.flags.verbose,"Backprojecting...\n");

@@ -642,7 +642,7 @@ void configure_reconstruction(struct recon_metadata *mr){
     idx_pull_end+=256;
    
     int n_proj_pull=idx_pull_end-idx_pull_start;
-
+    
     // Ensure that we have a number of projections divisible by 128 (because GPU)
     n_proj_pull=(n_proj_pull-1)+(128-(n_proj_pull-1)%128);
     idx_pull_end=idx_pull_start+n_proj_pull;
@@ -674,6 +674,9 @@ void update_block_info(recon_metadata *mr){
     struct recon_info ri=mr->ri;
     struct recon_params rp=mr->rp;
     struct ct_geom cg=mr->cg;
+
+    free(mr->ctd.raw);
+    free(mr->ctd.rebin);
     
     /* --- Figure out how many and which projections to grab --- */
     int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
@@ -735,6 +738,11 @@ void update_block_info(recon_metadata *mr){
     mr->ri.n_proj_pull=n_proj_pull;
 
     mr->ri.cb.block_idx++;
+
+    // Reallocate our raw and rebin arrays to account for changing n_proj_pull
+    mr->ctd.raw=(float*)calloc(cg.n_channels*cg.n_rows_raw*n_proj_pull,sizeof(float));
+    mr->ctd.rebin=(float*)calloc(cg.n_channels_oversampled*cg.n_rows*(n_proj_pull-2*cg.add_projections_ffs)/n_ffs,sizeof(float));
+    
 }
 
 void extract_projections(struct recon_metadata * mr){
@@ -935,11 +943,11 @@ void finish_and_cleanup(struct recon_metadata * mr){
     free(weights);
 
     // Free all remaining allocations in metadata
-    //free(mr->ctd.rebin);
-    //free(mr->ctd.image);
-    //free(mr->ctd.raw);
-    // free(mr->tube_angles);
-    //free(mr->table_positions);
+    free(mr->ctd.rebin);
+    free(mr->ctd.image);
+    free(mr->ctd.raw);
+    free(mr->tube_angles);
+    free(mr->table_positions);
 }
 
 int array_search(float key,double * array,int numel_array,int search_type){
