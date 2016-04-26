@@ -103,11 +103,6 @@ void rebin_nffs_cpu(struct recon_metadata *mr){
     d.idx1=cg.n_channels;
     d.idx2=cg.n_rows;
     d.idx3=n_proj;
-
-    FILE * outfile;
-    outfile=fopen("/home/john/Desktop/raw.txt","w");
-    fwrite(mr->ctd.raw,cg.n_channels*cg.n_rows*n_proj,sizeof(float),outfile);
-    fclose(outfile);
     
     for (int channel=0;channel<cg.n_channels_oversampled;channel++){
 	const float beta=asin(((float)channel-2*cg.central_channel)*(cg.fan_angle_increment/2));
@@ -120,10 +115,6 @@ void rebin_nffs_cpu(struct recon_metadata *mr){
 	    }
 	}
     }
-
-    outfile=fopen("/home/john/Desktop/rebin.txt","w");
-    fwrite(h_output,cg.n_channels_oversampled*cg.n_rows*n_proj,sizeof(float),outfile);
-    fclose(outfile);
     
     //Copy data into our mr structure, skipping initial truncated projections
     size_t offset=cg.add_projections;
@@ -156,8 +147,8 @@ void rebin_nffs_cpu(struct recon_metadata *mr){
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/rebin.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"rebin.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.rebin,sizeof(float),cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull-2*cg.add_projections_ffs)/mr->ri.n_ffs,outfile);
 	fclose(outfile);
@@ -232,11 +223,6 @@ void rebin_pffs_cpu(struct recon_metadata *mr){
 	    }
 	}
     }
-
-    FILE * o;
-    o=fopen("/home/john/Desktop/beta_lookup_pffs.txt","w");
-    fwrite(beta_lookup,sizeof(float),cg.n_channels_oversampled,o);
-    fclose(o);
     
     // Free any arrays we no longer need, allocate final output array
     free(raw_1);
@@ -289,8 +275,8 @@ void rebin_pffs_cpu(struct recon_metadata *mr){
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/rebin.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"rebin.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.rebin,sizeof(float),cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull-2*cg.add_projections_ffs)/mr->ri.n_ffs,outfile);
 	fclose(outfile);
@@ -413,8 +399,8 @@ void rebin_zffs_cpu(struct recon_metadata *mr){
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/rebin.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"rebin.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.rebin,sizeof(float),cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull-2*cg.add_projections_ffs)/mr->ri.n_ffs,outfile);
 	fclose(outfile);
@@ -476,44 +462,30 @@ void rebin_affs_cpu(struct recon_metadata *mr){
 
     // Check 'testing' flag, and write to disk if set
     if (mr->flags.testing){
-//	FILE * out;
-//	out=fopen("/home/john/Desktop/raw_1.txt","w");
-//	fwrite(raw_1,sizeof(float),cg.n_channels*cg.n_rows_raw*n_proj,out);
-//	fclose(out);
-//	out=fopen("/home/john/Desktop/raw_2.txt","w");
-//	fwrite(raw_2,sizeof(float),cg.n_channels*cg.n_rows_raw*n_proj,out);
-//	fclose(out);
-//	out=fopen("/home/john/Desktop/raw_3.txt","w");
-//	fwrite(raw_3,sizeof(float),cg.n_channels*cg.n_rows_raw*n_proj,out);
-//	fclose(out);
-//	out=fopen("/home/john/Desktop/raw_4.txt","w");
-//	fwrite(raw_4,sizeof(float),cg.n_channels*cg.n_rows_raw*n_proj,out);
-//	fclose(out);
-
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/reshape_1.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"reshape_1.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(raw_1,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/reshape_2.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"reshape_2.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(raw_2,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/reshape_3.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"reshape_3.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(raw_3,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/reshape_4.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"reshape_4.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(raw_4,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
@@ -579,24 +551,17 @@ void rebin_affs_cpu(struct recon_metadata *mr){
 	}
     }
 
-//    out=fopen("/home/john/Desktop/rebin_t_1.txt","w");
-//    fwrite(rebin_t_1,sizeof(float),cg.n_channels_oversampled*cg.n_rows_raw*n_proj,out);
-//    fclose(out);
-//    out=fopen("/home/john/Desktop/rebin_t_2.txt","w");
-//    fwrite(rebin_t_2,sizeof(float),cg.n_channels_oversampled*cg.n_rows_raw*n_proj,out);
-//    fclose(out);
-
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/rebin_t1.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"rebin_t1.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(rebin_t_1,sizeof(float),cg.n_channels_oversampled*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 	
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/rebin_t2.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"rebin_t2.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(rebin_t_2,sizeof(float),cg.n_channels_oversampled*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
@@ -665,8 +630,8 @@ void rebin_affs_cpu(struct recon_metadata *mr){
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->homedir);
-	strcat(fullpath,"/Desktop/rebin.ct_test");
+	strcpy(fullpath,mr->output_dir);
+	strcat(fullpath,"rebin.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.rebin,sizeof(float),cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull-2*cg.add_projections_ffs)/mr->ri.n_ffs,outfile);
 	fclose(outfile);

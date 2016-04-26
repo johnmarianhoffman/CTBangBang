@@ -24,10 +24,12 @@
 struct recon_params{
     char  raw_data_dir[4096];
     char  raw_data_file[255];
+    char  output_dir[4096];
     int n_rows;
     float coll_slicewidth;
     float start_pos;
     float end_pos;
+    int n_slices;  // overrides end_pos to give user a requested number of slices
     float slice_thickness;
     float tube_start_angle;
     float pitch_value;
@@ -43,6 +45,8 @@ struct recon_params{
     int file_type;
     int file_subtype;
     int raw_data_offset;
+    int table_dir;
+    float adaptive_filtration_s;
     unsigned int nx;
     unsigned int ny;
 };
@@ -101,6 +105,10 @@ struct ct_geom{
     int add_projections_ffs;
     int reverse_row_interleave;
     int reverse_channel_interleave;
+
+    // -1 table positions decreasing (SciDirTableIn);
+    //  1 table positions increasing (SciDirTableOut);
+    int table_direction;
 };
 
 struct flags{
@@ -116,6 +124,7 @@ struct flags{
 struct recon_metadata {
     char homedir[4096];
     char install_dir[4096];
+    char output_dir[4096];
     struct flags flags;
     struct recon_params rp;
     struct recon_info ri;

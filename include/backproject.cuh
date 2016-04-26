@@ -55,8 +55,12 @@ __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_tur
     int xi=threadIdx.x+blockIdx.x*blockDim.x;
     int yi=threadIdx.y+blockIdx.y*blockDim.y;
     int zi=K*(threadIdx.z+blockIdx.z*blockDim.z);
-    
-    float x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
+
+    float x;
+    if (d_cg.table_direction==-1)
+        x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
+    else
+	x=(d_rp.recon_fov/d_rp.nx)*(-(float)xi+(d_rp.nx-1)/2.0f)+d_rp.x_origin;
     float y=(d_rp.recon_fov/d_rp.ny)*((float)yi-(d_rp.ny-1)/2.0f)+d_rp.y_origin;
     float z=zi*d_rp.coll_slicewidth+d_cg.z_rot/2.0f+d_cg.z_rot*tube_start/(2.0f*pi);
     
@@ -77,11 +81,20 @@ __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_tur
 	    
 		float ray_pos=(d_cg.z_rot*(theta-asin(phat/d_cg.r_f))/(2.0f*pi));
 		float lhat=sqrt(pow(d_cg.r_f,2.0f)-pow(phat,2.0f))-x*cos(theta)-y*sin(theta);
-		float qhat=(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
+		float qhat=-d_cg.table_direction*(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
 		float q_idx=((qhat+1.0f)/2.0f)*(d_cg.n_rows-1.0f)+d_cg.n_rows*i+k*I*d_cg.n_rows;
 
-		s_t[j]+=tex2D(tex_a,p_idx+0.5,q_idx+0.5)*W(qhat);
-		h_t[j]+=W(qhat);
+		float interpolated_value=tex2D(tex_a,p_idx+0.5,q_idx+0.5)*W(qhat);
+
+		if (!isnan(interpolated_value)){
+		    s_t[j]+=interpolated_value;
+		    h_t[j]+=W(qhat);
+		}
+		else{
+		    h_t[j]=0.0f;
+		}
+		//s_t[j]+=tex2D(tex_a,p_idx+0.5,q_idx+0.5)*W(qhat);
+		//h_t[j]+=W(qhat);
 
 		__syncthreads();
 	    
@@ -117,8 +130,12 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
     int xi=threadIdx.x+blockIdx.x*blockDim.x;
     int yi=threadIdx.y+blockIdx.y*blockDim.y;
     int zi=K*(threadIdx.z+blockIdx.z*blockDim.z);
-    
-    float x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
+
+    float x;
+    if (d_cg.table_direction==-1)
+	x=(d_rp.recon_fov/d_rp.nx)*((float)xi-(d_rp.nx-1)/2.0f)+d_rp.x_origin;
+    else
+	x=(d_rp.recon_fov/d_rp.nx)*(-(float)xi+(d_rp.nx-1)/2.0f)+d_rp.x_origin;
     float y=(d_rp.recon_fov/d_rp.ny)*((float)yi-(d_rp.ny-1)/2.0f)+d_rp.y_origin;
     float z=zi*d_rp.coll_slicewidth+d_cg.z_rot/2.0f+d_cg.z_rot*tube_start/(2.0f*pi);
     
@@ -139,11 +156,21 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
 	    
 		float ray_pos=(d_cg.z_rot*(theta-asin(phat/d_cg.r_f))/(2.0f*pi));
 		float lhat=sqrt(pow(d_cg.r_f,2.0f)-pow(phat,2.0f))-x*cos(theta)-y*sin(theta);
-		float qhat=(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
+		float qhat=-d_cg.table_direction*(z-ray_pos)/(lhat*tan(d_cg.theta_cone/2.0f));
 		float q_idx=((qhat+1.0f)/2.0f)*(d_cg.n_rows-1.0f)+d_cg.n_rows*i+k*I*d_cg.n_rows;
 
-		s_t[j]+=tex2D(tex_b,p_idx+0.5,q_idx+0.5)*W(qhat);
-		h_t[j]+=W(qhat);
+		float interpolated_value=tex2D(tex_b,p_idx+0.5,q_idx+0.5)*W(qhat);
+
+		if (!isnan(interpolated_value)){
+		    s_t[j]+=interpolated_value;
+		    h_t[j]+=W(qhat);
+		}
+		else{
+		    h_t[j]=0.0f;
+		}
+		
+		//s_t[j]+=tex2D(tex_b,p_idx+0.5,q_idx+0.5)*W(qhat);
+		//h_t[j]+=W(qhat);
 		    
 		__syncthreads();
 
@@ -152,6 +179,7 @@ __global__ void bp_b(float * output,int proj_idx,float tube_start,int n_half_tur
 	
 	for (int kk=0;kk<K;kk++){
 	    if (h_t[kk]!=0){
+		//if ((h_t[kk]!=0)&&(!isnan(s[kk]))){		
 		s[kk]+=(1.0f/h_t[kk])*s_t[kk];
 	    }
 	}
