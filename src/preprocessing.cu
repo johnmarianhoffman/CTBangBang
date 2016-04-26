@@ -129,7 +129,7 @@ int adaptive_filter_kk(struct recon_metadata * mr){
     // Copy filtered raw data back into raw ct data array
     cudaMemcpy(mr->ctd.raw,d_filtered_raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
     
-    float_debug(mr->ctd.raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull,"/home/john/Desktop/h_raw.txt");
+    //float_debug(mr->ctd.raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull,"/home/john/Desktop/h_raw.txt");
     
     cudaFree(d_sup);
     cudaFree(d_sup_smooth);
