@@ -21,6 +21,7 @@
 #ifndef ctbb_macros_h
 #define ctbb_macros_h
 
+/* GPU Error Handling */
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true){
     if (code != cudaSuccess){
@@ -29,24 +30,23 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     }
 }
 
+/* Timing */
+// Mini macros (you probably don't need to use these directly
 #define __TIMING_VARIABLE__ milli
-
 #define TIMER_INIT() cudaEvent_t start,stop; float __TIMING_VARIABLE__;
-
 #define TIMER_START() {cudaEventCreate(&start);cudaEventCreate(&stop);cudaEventRecord(start);}
-
-#define TIMER_END() {cudaEventRecord(stop);		\
-	cudaEventSynchronize(stop);			\
-	cudaEventElapsedTime(&milli,start,stop);	\
-	cudaEventDestroy(start);			\
+#define TIMER_END() {cudaEventRecord(stop);			\
+	cudaEventSynchronize(stop);				\
+	cudaEventElapsedTime(&__TIMING_VARIABLE__,start,stop);	\
+	cudaEventDestroy(start);				\
 	cudaEventDestroy(stop);}
-
 #define TIMER_PRINT(flag,message) print_time(flag,message,__TIMING_VARIABLE__);
 inline void print_time(int flag, const char * message,float time){
     if (flag)
 	printf("%0.2f ms for %s\n",time,message);
 }
 
+// This is what we use to time a function call
 #define TIME_EXEC(function_call,flag,message) TIMER_START(); function_call; TIMER_END(); TIMER_PRINT(flag,message);
 
 #endif

@@ -560,13 +560,13 @@ void rebin_zffs(struct recon_metadata *mr){
     //Reshape data into our mr structure
     size_t offset=cg.add_projections;
     for (int i=0;i<cg.n_rows;i++){
-	for (int j=0;j<cg.n_channels_oversampled;j++){
-	    for (int k=0;k<(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);k++){
-		size_t out_idx=k*cg.n_channels_oversampled*cg.n_rows+i*cg.n_channels_oversampled+j;
-		size_t in_idx=(cg.n_channels_oversampled*mr->ri.n_proj_pull/mr->ri.n_ffs)*i+mr->ri.n_proj_pull/mr->ri.n_ffs*j+(k+offset);
-		mr->ctd.rebin[out_idx]=h_output[in_idx];
-	    }
-	}
+    	for (int j=0;j<cg.n_channels_oversampled;j++){
+    	    for (int k=0;k<(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);k++){
+    		size_t out_idx=k*cg.n_channels_oversampled*cg.n_rows+i*cg.n_channels_oversampled+j;
+    		size_t in_idx=(cg.n_channels_oversampled*mr->ri.n_proj_pull/mr->ri.n_ffs)*i+mr->ri.n_proj_pull/mr->ri.n_ffs*j+(k+offset);
+    		mr->ctd.rebin[out_idx]=h_output[in_idx];
+    	    }
+    	}
     }
 
     // Check "testing" flag, write rebin to disk if set
