@@ -25,8 +25,8 @@
 #include <backproject.h>
 #include <math.h>
 
-#define Bx 32
-#define By 32
+#define Bx 16
+#define By 16
 
 int backproject(struct recon_metadata * mr){
 
