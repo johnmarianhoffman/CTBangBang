@@ -22,19 +22,10 @@
 #include <stdio.h>
 #include <math.h>
 
+#include <ctbb_macros.h>
 #include <recon_structs.h>
 #include <rebin_filter.cuh>
 #include <rebin_filter.h>
-
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-    if (code != cudaSuccess)
-	{
-	    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-	    if (abort) exit(code);
-	}
-}
 
 void copy_sheet(float * sheetptr, int row, struct recon_metadata *mr, struct ct_geom cg);
 void load_filter(float * f_array,struct recon_metadata * mr);

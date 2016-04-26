@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <pwd.h>
 
+#include <ctbb_macros.h>
 #include <recon_structs.h>
 #include <setup.h>
 #include <preprocessing.h>
@@ -35,17 +36,6 @@
 #include <rebin_filter_cpu.h>
 #include <backproject.h>
 #include <backproject_cpu.h>
-
-
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-    if (code != cudaSuccess)
-	{
-	    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-	    if (abort) exit(code);
-	}
-}
 
 void log(int verbosity, const char *string, ...);
 void split_path_file(char**p, char**f, char *pf);
@@ -165,15 +155,8 @@ int main(int argc, char ** argv){
     }
 
     // --timing cuda events
-    cudaEvent_t start,stop;
+    TIMER_INIT();
 
-    cudaEvent_t bench_master_start,bench_master_stop,bench_start,bench_stop;
-    if (mr.flags.benchmark){
-	cudaEventCreate(&bench_master_start);
-	cudaEventCreate(&bench_master_stop);
-	cudaEventRecord(bench_master_start);
-    }
-    
     /* --- Step 1-3 handled by functions in setup.cu --- */
     // Step 1: Parse input file
     log(mr.flags.verbose,"Reading PRM file...\n");
@@ -188,16 +171,6 @@ int main(int argc, char ** argv){
 	strcpy(mr.output_dir,fullpath);
     }
     
-    // Set up benchmarking variables and output file if requested
-    char fullpath[4096+255];
-    strcpy(fullpath,mr.output_dir);
-    strcat(fullpath,".tmp_benchmark.bin");
-    FILE * benchmark_file;
-    if (mr.flags.benchmark){
-	benchmark_file=fopen(fullpath,"a");
-	fseek(benchmark_file,0,SEEK_END);
-    }
-
     // Step 2a: Setup scanner geometry
     log(mr.flags.verbose,"Configuring scanner geometry...\n");
     mr.cg=configure_ct_geom(&mr);
@@ -207,7 +180,6 @@ int main(int argc, char ** argv){
     configure_reconstruction(&mr);
 
     log(mr.flags.verbose,"Allowed recon range: %.2f to %.2f\n",mr.ri.allowed_begin,mr.ri.allowed_end);
-
     log(mr.flags.verbose,"\nSTARTING RECONSTRUCTION\n\n");
     
     for (int i=0;i<mr.ri.n_blocks;i++){
@@ -225,109 +197,30 @@ int main(int argc, char ** argv){
 	// Step 3.5: Adaptive filtration of raw data to reduce streak artifacts
 	log(mr.flags.verbose,"Running adaptive filtering...\n");
 
-	if (mr.flags.timing){
-	    cudaEventCreate(&start);
-	    cudaEventCreate(&stop);
-	    cudaEventRecord(start);
-	}
-
-	adaptive_filter_kk(&mr);
-
-	if (mr.flags.timing){
-	    cudaEventRecord(stop);
-	    cudaEventSynchronize(stop);
-	    float milli=0.0f;
-	    cudaEventElapsedTime(&milli,start,stop);
-	    printf("%.2f ms for adaptive filtration\n",milli);
-	    cudaEventDestroy(start);
-	    cudaEventDestroy(stop);
-	}
+	TIME_EXEC(adaptive_filter_kk(&mr),mr.flags.timing,"adaptive_filtration");
 
 	/* --- Step 4 handled by functions in rebin_filter.cu --- */
 	// Step 4: Rebin and filter
 	log(mr.flags.verbose,"Rebinning and filtering data...\n");
 
-	if (mr.flags.timing){
-	    cudaEventCreate(&start);
-	    cudaEventCreate(&stop);
-	    cudaEventRecord(start);
+	if (mr.flags.no_gpu==1){
+	    TIME_EXEC(rebin_filter_cpu(&mr),mr.flags.timing,"rebinning and filtering");
+	}
+	else{
+	    TIME_EXEC(rebin_filter(&mr),mr.flags.timing,"rebinning and filtering");
 	}
 
-	if (mr.flags.benchmark){
-	    cudaEventCreate(&bench_start);
-	    cudaEventCreate(&bench_stop);
-	    cudaEventRecord(bench_start);
-	}
-
-	if (mr.flags.no_gpu==1)
-	    rebin_filter_cpu(&mr);
-	else
-	    rebin_filter(&mr);
-
-	if (mr.flags.timing){
-	    cudaEventRecord(stop);
-	    cudaEventSynchronize(stop);
-	    float milli=0.0f;
-	    cudaEventElapsedTime(&milli,start,stop);
-	    printf("%.2f ms to rebin & filter\n",milli);
-	    cudaEventDestroy(start);
-	    cudaEventDestroy(stop);
-	}
-	if (mr.flags.benchmark){
-	    cudaEventRecord(bench_stop);
-	    cudaEventSynchronize(bench_stop);
-	    float milli=0.0f;
-	    cudaEventElapsedTime(&milli,bench_start,bench_stop);
-	    // write the benchmark data to file
-	    fwrite(&milli,sizeof(float),1,benchmark_file);
-	    cudaEventDestroy(bench_start);
-	    cudaEventDestroy(bench_stop);
-	}
-	
 	/* --- Step 5 handled by functions in backproject.cu ---*/
 	// Step 5: Backproject
 	log(mr.flags.verbose,"Backprojecting...\n");
 
-	if (mr.flags.timing){
-	    cudaEventCreate(&start);
-	    cudaEventCreate(&stop);
-	    cudaEventRecord(start);
+	if (mr.flags.no_gpu==1){
+	    TIME_EXEC(backproject_cpu(&mr),mr.flags.timing,"backprojection");
 	}
-
-	if (mr.flags.benchmark){
-	    cudaEventCreate(&bench_start);
-	    cudaEventCreate(&bench_stop);
-	    cudaEventRecord(bench_start);
+	else{
+	    TIME_EXEC(backproject(&mr),mr.flags.timing,"backprojections");;
 	}
-
-	if (mr.flags.no_gpu==1)
-	    backproject_cpu(&mr);
-	else
-	    backproject(&mr);
-
-	if (mr.flags.timing){
-	    cudaEventRecord(stop);
-	    cudaEventSynchronize(stop);
-	    float milli=0.0f;
-	    cudaEventElapsedTime(&milli,start,stop);
-	    printf("%.2f ms to backproject\n",milli);
-	    cudaEventDestroy(start);
-	    cudaEventDestroy(stop);
-	}
-	
-	if (mr.flags.benchmark){
-	    cudaEventRecord(bench_stop);
-	    cudaEventSynchronize(bench_stop);
-	    float milli=0.0f;
-	    cudaEventElapsedTime(&milli,bench_start,bench_stop);
-	    // write the benchmark data to file
-	    fwrite(&milli,sizeof(float),1,benchmark_file);
-	    cudaEventDestroy(bench_start);
-	    cudaEventDestroy(bench_stop);
-	}
-	
     }
-
 
     // Step 6: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
@@ -335,18 +228,6 @@ int main(int argc, char ** argv){
     finish_and_cleanup(&mr);
 
     log(mr.flags.verbose,"Done.\n");
-
-    if (mr.flags.benchmark){
-	cudaEventRecord(bench_master_stop);
-	cudaEventSynchronize(bench_master_stop);
-	float milli=0.0f;
-	cudaEventElapsedTime(&milli,bench_master_start,bench_master_stop);
-	// write the benchmark data to file
-	fwrite(&milli,sizeof(float),1,benchmark_file);
-	cudaEventDestroy(bench_master_start);
-	cudaEventDestroy(bench_master_stop);
-	fclose(benchmark_file);
-    }
 
     cudaDeviceReset();
     return 0;
