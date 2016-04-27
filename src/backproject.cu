@@ -96,6 +96,7 @@ int backproject(struct recon_metadata * mr){
     long block_offset=(mr->ri.cb.block_idx-1)*mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block;
     cudaMemcpy(&mr->ctd.image[block_offset],d_output,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_block*sizeof(float),cudaMemcpyDeviceToHost);
 
+    cudaFree(mr->ctd.d_rebin);
     cudaFree(d_output);
     cudaFreeArray(cu_proj_1);
     cudaFreeArray(cu_proj_2);
