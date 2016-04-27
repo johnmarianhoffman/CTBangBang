@@ -36,6 +36,7 @@
 #include <rebin_filter_cpu.h>
 #include <backproject.h>
 #include <backproject_cpu.h>
+#include <finalize_image_stack_cpu.h>
 
 void log(int verbosity, const char *string, ...);
 void split_path_file(char**p, char**f, char *pf);
@@ -222,7 +223,11 @@ int main(int argc, char ** argv){
 	}
     }
 
-    // Step 6: Save image data to disk (found in setup.cu)
+    // Step 6: Reorder and thicken slices as needed
+    TIME_EXEC(finalize_image_stack_cpu(&mr),mr.flags.timing,"reordering and thickening slices");;
+
+    
+    // Step 7: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
     log(mr.flags.verbose,"Writing image data to %s%s.img\n",mr.output_dir,mr.rp.raw_data_file);
     finish_and_cleanup(&mr);

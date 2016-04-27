@@ -86,6 +86,7 @@ struct ct_data{
     float * d_raw;
     float * d_rebin;
     float * d_image;
+    float * final_image_stack;
 };
     
 struct ct_geom{
