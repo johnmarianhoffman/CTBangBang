@@ -349,6 +349,21 @@ __global__ void a2_rebin_b(float * output,float * beta_lookup,float dr,int row){
     output[out_idx]=tex2D(tex_b,proj+0.5f,beta_idx+0.5f);
 }
 
+/* --- Reshape out kernel ---*/
+// Reshapes row-sheet rebinned array into projection-sheet array
+__global__ void reshape_out(float * output,float * input){
+
+    size_t offset=d_cg.add_projections;
+
+    size_t j = threadIdx.x+blockIdx.x*blockDim.x;//j channel
+    size_t k = threadIdx.y+blockIdx.y*blockDim.y;//k proj 
+    size_t i = threadIdx.z+blockIdx.z*blockDim.z;//i row
+
+    size_t in_idx=(d_cg.n_channels_oversampled*d_ri.n_proj_pull/d_ri.n_ffs)*i+d_ri.n_proj_pull/d_ri.n_ffs*j+(k+offset);
+    size_t out_idx=k*d_cg.n_channels_oversampled*d_cg.n_rows+i*d_cg.n_channels_oversampled+j;
+
+    output[out_idx]=input[in_idx];    
+}
 
 /* --- Filter kernel --- */
 __global__ void filter(float * output, int row){

@@ -15,10 +15,10 @@ OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 
 all: ../ctbangbang
 
-../ctbangbang: $(OBJ)
+../ctbangbang: $(OBJ) 
 	(cd obj && $(NVCC) -g -o ../../ctbangbang *.o $(LIBS))
 
-obj/main.o: main.cu $(IDIR_RECON)recon_structs.h $(IDIR_RECON)setup.h $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)backproject.h $(IDIR_RECON)ctbb_macros.h
+obj/main.o: main.cu $(IDIR_RECON)setup.h $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)backproject.h $(IDIR_RECON)ctbb_macros.h $(IDIR_RECON)recon_structs.h 
 	$(NVCC) $(CFLAGS) -c -o $@ $<
 
 obj/setup.o: setup.cu $(IDIR_RECON)setup.h
