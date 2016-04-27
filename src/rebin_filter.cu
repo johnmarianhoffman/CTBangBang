@@ -74,7 +74,7 @@ void rebin_nffs(struct recon_metadata *mr){
     // Allocate the entire output array here and on GPU Note that size
     // of output array is the same for all FFS configurations
     float * d_output;
-    float * h_output=(float *)calloc(cg.n_channels_oversampled*cg.n_rows*mr->ri.n_proj_pull/mr->ri.n_ffs,sizeof(float));
+
     cudaMalloc(&d_output,cg.n_channels_oversampled*cg.n_rows*mr->ri.n_proj_pull/mr->ri.n_ffs*sizeof(float));
     cudaMemset(d_output,0,cg.n_channels_oversampled*cg.n_rows*mr->ri.n_proj_pull/mr->ri.n_ffs*sizeof(float));
     
@@ -156,18 +156,17 @@ void rebin_nffs(struct recon_metadata *mr){
     cudaFreeArray(cu_raw_1);
     cudaFreeArray(cu_raw_2);
 
-    // Copy final rebinned projections back to host
-    cudaMemcpy(h_output,d_output,cg.n_channels_oversampled*cg.n_rows*mr->ri.n_proj_pull/mr->ri.n_ffs*sizeof(float),cudaMemcpyDeviceToHost);
-    
     //Reshape data into our mr structure
-    size_t offset=cg.add_projections;
-    for (int i=0;i<cg.n_rows;i++){
-	for (int j=0;j<cg.n_channels_oversampled;j++){
-	    for (int k=0;k<(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);k++){
-		mr->ctd.rebin[k*cg.n_channels_oversampled*cg.n_rows+i*cg.n_channels_oversampled+j]=h_output[(cg.n_channels_oversampled*mr->ri.n_proj_pull/mr->ri.n_ffs)*i+mr->ri.n_proj_pull/mr->ri.n_ffs*j+(k+offset)];
-	    }
-	}
-    }
+    cudaMalloc(&mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float));
+
+    n_threads=128;
+    size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
+    dim3 threads_reshape_out(n_threads,1,1);
+    dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
+
+    reshape_out<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
+    
+    cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
 
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
@@ -185,7 +184,6 @@ void rebin_nffs(struct recon_metadata *mr){
     cudaStreamDestroy(stream2);
 
     free(h_filter);
-    free(h_output);
 }
 
 void rebin_pffs(struct recon_metadata *mr){
@@ -351,22 +349,18 @@ void rebin_pffs(struct recon_metadata *mr){
 	
     }
 
-    float * h_output;
-    h_output=(float*)calloc(cg.n_channels_oversampled*cg.n_rows*mr->ri.n_proj_pull/mr->ri.n_ffs,sizeof(float));
-    cudaMemcpy(h_output,d_output,cg.n_channels_oversampled*cg.n_rows*mr->ri.n_proj_pull/mr->ri.n_ffs*sizeof(float),cudaMemcpyDeviceToHost);
+    cudaFree(d_rebin_t);
 
-    //Reshape data into our mr structure
-    size_t offset=cg.add_projections;
-    for (int i=0;i<cg.n_rows;i++){
-       	for (int j=0;j<cg.n_channels_oversampled;j++){
-	    for (int k=0;k<(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);k++){
-	        mr->ctd.rebin[k*cg.n_channels_oversampled*cg.n_rows+i*cg.n_channels_oversampled+j]=h_output[(cg.n_channels_oversampled*mr->ri.n_proj_pull/mr->ri.n_ffs)*i+mr->ri.n_proj_pull/mr->ri.n_ffs*j+(k+offset)];
-		// REverse spiral:		mr->ctd.rebin[k*cg.n_channels_oversampled*cg.n_rows+i*cg.n_channels_oversampled+j]=h_output[(cg.n_channels_oversampled*mr->ri.n_proj_pull/mr->ri.n_ffs)*i+mr->ri.n_proj_pull/mr->ri.n_ffs*j+(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections-1-k+offset)];
-		// Reverse spiral and channels: mr->ctd.rebin[k*cg.n_channels_oversampled*cg.n_rows+i*cg.n_channels_oversampled+j]=h_output[(cg.n_channels_oversampled*mr->ri.n_proj_pull/mr->ri.n_ffs)*i+mr->ri.n_proj_pull/mr->ri.n_ffs*(cg.n_channels_oversampled-1-j)+(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections-1-k+offset)];
-		// Reverse channels: mr->ctd.rebin[k*cg.n_channels_oversampled*cg.n_rows+i*cg.n_channels_oversampled+j]=h_output[(cg.n_channels_oversampled*mr->ri.n_proj_pull/mr->ri.n_ffs)*i+mr->ri.n_proj_pull/mr->ri.n_ffs*(cg.n_channels_oversampled-1-j)+(k+offset)];
-	    }
-	}
-    }
+    cudaMalloc(&mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float));
+
+    n_threads=128;
+    size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
+    dim3 threads_reshape_out(n_threads,1,1);
+    dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
+
+    reshape_out<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
+    
+    cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
 
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
@@ -379,12 +373,10 @@ void rebin_pffs(struct recon_metadata *mr){
     }
 
     cudaFree(d_beta_lookup);
-    cudaFree(d_rebin_t);
     cudaFree(d_output);
     cudaFreeArray(cu_raw_1);
     cudaFreeArray(cu_raw_2);
     
-    free(h_output);
     free(h_filter);
     
     cudaStreamDestroy(stream1);
@@ -553,22 +545,19 @@ void rebin_zffs(struct recon_metadata *mr){
 	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
     }
 
-    float * h_output;
-    h_output=(float*)calloc(cg.n_channels_oversampled*cg.n_rows*mr->ri.n_proj_pull/mr->ri.n_ffs,sizeof(float));
-    cudaMemcpy(h_output,d_output,cg.n_channels_oversampled*cg.n_rows*mr->ri.n_proj_pull/mr->ri.n_ffs*sizeof(float),cudaMemcpyDeviceToHost);
-    
-    //Reshape data into our mr structure
-    size_t offset=cg.add_projections;
-    for (int i=0;i<cg.n_rows;i++){
-    	for (int j=0;j<cg.n_channels_oversampled;j++){
-    	    for (int k=0;k<(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);k++){
-    		size_t out_idx=k*cg.n_channels_oversampled*cg.n_rows+i*cg.n_channels_oversampled+j;
-    		size_t in_idx=(cg.n_channels_oversampled*mr->ri.n_proj_pull/mr->ri.n_ffs)*i+mr->ri.n_proj_pull/mr->ri.n_ffs*j+(k+offset);
-    		mr->ctd.rebin[out_idx]=h_output[in_idx];
-    	    }
-    	}
-    }
+    //Reshape into array ready for backprojection
+    cudaFree(d_fs);
+    cudaMalloc(&mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float));
 
+    n_threads=128;
+    size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
+    dim3 threads_reshape_out(n_threads,1,1);
+    dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
+
+    reshape_out<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
+    
+    cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
+    
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
 	char fullpath[4096+255];
@@ -579,9 +568,9 @@ void rebin_zffs(struct recon_metadata *mr){
 	fclose(outfile);
     }
 
-    free(h_output);
+    //free(h_output);
     free(h_filter);
-    cudaFree(d_fs);
+    //cudaFree(d_fs);
     cudaFree(d_output);
     cudaFree(d_beta_lookup_1);
     cudaFree(d_beta_lookup_2);
@@ -880,19 +869,20 @@ void rebin_affs(struct recon_metadata *mr){
 	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
     }
 
-    float * h_output;
-    h_output=(float*)calloc(cg.n_channels_oversampled*cg.n_rows*ri.n_proj_pull/ri.n_ffs,sizeof(float));
-    cudaMemcpy(h_output,d_output,cg.n_channels_oversampled*cg.n_rows*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToHost);
-    
     //Reshape data into our mr structure
-    size_t offset=cg.add_projections;
-    for (int i=0;i<cg.n_rows;i++){
-	for (int j=0;j<cg.n_channels_oversampled;j++){
-	    for (int k=0;k<(ri.n_proj_pull/ri.n_ffs-2*cg.add_projections);k++){
-		mr->ctd.rebin[k*cg.n_channels_oversampled*cg.n_rows+i*cg.n_channels_oversampled+j]=h_output[(cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs)*i+ri.n_proj_pull/ri.n_ffs*j+(k+offset)];
-	    }
-	}
-    }
+    cudaFree(d_rebin_t1);
+    cudaFree(d_rebin_t2);
+    
+    cudaMalloc(&mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float));
+    
+    n_threads=128;
+    size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
+    dim3 threads_reshape_out(n_threads,1,1);
+    dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);
+    
+    reshape_out<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
+    
+    cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
     
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
@@ -904,13 +894,8 @@ void rebin_affs(struct recon_metadata *mr){
 	fclose(outfile);
     }
 
-
-    free(h_output);
     free(h_filter);
 
-    cudaFree(d_rebin_t1);
-    cudaFree(d_rebin_t2);
-    
     cudaFreeArray(cu_raw_1);
     cudaFreeArray(cu_raw_2);
     
