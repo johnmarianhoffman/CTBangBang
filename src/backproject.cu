@@ -25,8 +25,8 @@
 #include <backproject.h>
 #include <math.h>
 
-#define Bx 32
-#define By 32
+#define Bx 16
+#define By 16
 
 int backproject(struct recon_metadata * mr){
 
@@ -76,12 +76,12 @@ int backproject(struct recon_metadata * mr){
 
     for (int i=0;i<cg.n_proj_turn/2;i+=I*2){
 	for (int k=0;k<n_half_turns;k++){
-	    cudaMemcpyToArrayAsync(cu_proj_1,0,k*I*cg.n_rows,&mr->ctd.rebin[(i+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream1);
+	    cudaMemcpyToArrayAsync(cu_proj_1,0,k*I*cg.n_rows,&mr->ctd.d_rebin[(i+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyDeviceToDevice,stream1);
 	}
 	cudaBindTextureToArray(tex_a,cu_proj_1,channelDesc);
 
 	for (int k=0;k<n_half_turns;k++){
-	    cudaMemcpyToArrayAsync(cu_proj_2,0,k*I*cg.n_rows,&mr->ctd.rebin[(i+I+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyHostToDevice,stream2);
+	    cudaMemcpyToArrayAsync(cu_proj_2,0,k*I*cg.n_rows,&mr->ctd.d_rebin[(i+I+k*cg.n_proj_turn/2)*cg.n_rows*cg.n_channels_oversampled],I*cg.n_rows*cg.n_channels_oversampled*sizeof(float),cudaMemcpyDeviceToDevice,stream2);
 	}
 	cudaBindTextureToArray(tex_b,cu_proj_2,channelDesc);
 	
