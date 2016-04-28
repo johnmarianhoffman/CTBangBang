@@ -10,7 +10,7 @@ LIBS=-lfftw3 -lm -lctbb_read
 
 CFLAGS=$(INCLUDES) -g
 
-_OBJ=main.o setup.o interp.o preprocessing.o rebin_filter.o rebin_filter_cpu.o backproject.o backproject_cpu.o finalize_image_stack_cpu.o
+_OBJ=main.o setup.o interp.o preprocessing.o rebin_filter.o rebin_filter_cpu.o backproject.o backproject_cpu.o finalize_image_stack.o finalize_image_stack_cpu.o
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 
 all: ../ctbangbang
@@ -44,6 +44,10 @@ obj/backproject_cpu.o: backproject_cpu.cu $(IDIR_RECON)backproject_cpu.h
 
 obj/finalize_image_stack_cpu.o: finalize_image_stack_cpu.cu $(IDIR_RECON)finalize_image_stack_cpu.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<
+
+obj/finalize_image_stack.o: finalize_image_stack.cu $(IDIR_RECON)finalize_image_stack.h
+	$(NVCC) $(CFLAGS) -c -o $@ $<
+
 
 .PHONY: all test clean
 

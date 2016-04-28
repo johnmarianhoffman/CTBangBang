@@ -36,6 +36,7 @@
 #include <rebin_filter_cpu.h>
 #include <backproject.h>
 #include <backproject_cpu.h>
+#include <finalize_image_stack.h>
 #include <finalize_image_stack_cpu.h>
 
 void log(int verbosity, const char *string, ...);
@@ -224,8 +225,14 @@ int main(int argc, char ** argv){
     }
 
     // Step 6: Reorder and thicken slices as needed
-    TIME_EXEC(finalize_image_stack_cpu(&mr),mr.flags.timing,"reordering and thickening slices");;
-
+    log(mr.flags.verbose,"Finalizing image stack...\n");
+    
+    if (mr.flags.no_gpu==1){
+	TIME_EXEC(finalize_image_stack_cpu(&mr),mr.flags.timing,"reordering and thickening slices");
+    }
+    else{
+	TIME_EXEC(finalize_image_stack(&mr),mr.flags.timing,"reordering and thickening slices");
+    }
     
     // Step 7: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
