@@ -19,12 +19,18 @@
 /* jmhoffman@mednet.ucla.edu with "CTBANGBANG" in the subject line*/
 
 #include <stdio.h>
+#include <ctbb_macros.h>
+#include <finalize_image_stack.cuh>
 #include <finalize_image_stack.h>
 
 int finalize_image_stack(struct recon_metadata * mr){
 
     struct recon_params rp=mr->rp;
     struct recon_info ri=mr->ri;
+
+    // Copy reference structures to device
+    cudaMemcpyToSymbol(d_ri,&mr->ri,sizeof(struct recon_info),0,cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_rp,&mr->rp,sizeof(struct recon_params),0,cudaMemcpyHostToDevice);
 
     // This will be deleted eventually
     float * d_raw_image_stack;
@@ -34,7 +40,6 @@ int finalize_image_stack(struct recon_metadata * mr){
 
     float * d_temp_out;
     cudaMalloc(&d_temp_out,rp.nx*rp.ny*ri.n_slices_recon*sizeof(float));
-
     
     int recon_direction=fabs(rp.end_pos-rp.start_pos)/(rp.end_pos-rp.start_pos);
     if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
@@ -45,38 +50,23 @@ int finalize_image_stack(struct recon_metadata * mr){
 	printf("Axial scans are currently unsupported, or a different error has occurred\n");
     
     // Check for a reversed stack of images and flip, otherwise just copy
-    dim3 threads_reshape(32,32,1);
-    dim3 blocks_reshape(rp.nx/threads_reshape.x,rp.ny/threads_reshape.y,ri.n_slices_block*ri.n_blocks);
-    if (recon_direction!=table_direction){
-
-    }
-    else{
-
-    }
-
-
+    dim3 threads_reshape(1,1,ri.n_slices_block);
+    dim3 blocks_reshape(rp.nx/threads_reshape.x,rp.ny/threads_reshape.y,1);
     if (recon_direction!=table_direction){
 	for (int b=0;b<ri.n_blocks;b++){
-	    for (int z=0;z<ri.n_slices_block;z++){
-		for (int x=0;x<rp.nx;x++){
-		    for (int y=0;y<rp.ny;y++){
-			long block_offset=b*rp.nx*rp.ny*ri.n_slices_block;
-			temp_out[z*rp.nx*rp.ny+y*rp.nx+x+block_offset]=mr->ctd.image[((ri.n_slices_block-1)-z)*rp.nx*rp.ny+y*rp.nx+x+block_offset];
-		    }
-		}
-	    }
+	    reorder_block<<<blocks_reshape,threads_reshape>>>(d_temp_out,d_raw_image_stack,b);
 	}
     }
     else{
-	for (int z=0;z<ri.n_slices_recon;z++){
-	    for (int x=0;x<rp.nx;x++){
-		for (int y=0;y<rp.ny;y++){
-		    temp_out[z*rp.nx*rp.ny+y*rp.nx+x]=mr->ctd.image[z*rp.nx*rp.ny+y*rp.nx+x];
-		}
-	    }
-	}	
+	cudaMemcpy(d_temp_out,d_raw_image_stack,rp.nx*rp.ny*ri.n_slices_recon*sizeof(float),cudaMemcpyDeviceToDevice);
     }
 
+    //float * temp_out=(float*)calloc(rp.nx*rp.ny*ri.n_slices_recon,sizeof(float));
+    //cudaMemcpy(temp_out,d_temp_out,rp.nx*rp.ny*ri.n_slices_recon*sizeof(float),cudaMemcpyDeviceToHost);
+    //FLOAT_DEBUG(temp_out,rp.nx*rp.ny*ri.n_slices_recon,"/home/john/Desktop/raw_array.bin");
+
+    cudaFree(d_raw_image_stack);
+    
     // Once we have straightened our image stack out, we need to adjust slice thickness
     // to match what the user requested.
     // We use a triangle average with the FWHM equal to the requested slice thickness
@@ -84,7 +74,9 @@ int finalize_image_stack(struct recon_metadata * mr){
     int n_raw_images=ri.n_slices_block*ri.n_blocks;
     int n_slices_final=floor(fabs(rp.end_pos-rp.start_pos)/rp.slice_thickness)+1;
     mr->ctd.final_image_stack=(float*)calloc(rp.nx*rp.ny*n_slices_final,sizeof(float));
-
+    cudaMalloc(&mr->ctd.d_final_image_stack,rp.nx*rp.ny*n_slices_final*sizeof(float));
+    cudaMemset(mr->ctd.d_final_image_stack,0,rp.nx*rp.ny*n_slices_final*sizeof(float));
+    
     float * recon_locations;
     recon_locations=(float*)calloc(n_slices_final,sizeof(float));
     for (int i=0;i<n_slices_final;i++){
@@ -92,44 +84,33 @@ int finalize_image_stack(struct recon_metadata * mr){
     }
 
     float * raw_recon_locations;
+    float * d_raw_recon_locations;
     raw_recon_locations=(float*)calloc(n_raw_images,sizeof(float));
+    cudaMalloc(&d_raw_recon_locations,n_raw_images*sizeof(float));
     for (int i=0;i<n_raw_images;i++){
 	raw_recon_locations[i]=ri.recon_start_pos+recon_direction*i*rp.coll_slicewidth;//(rp.start_pos-recon_direction*rp.slice_thickness)+recon_direction*i*rp.coll_slicewidth;
     }
+    cudaMemcpy(d_raw_recon_locations,raw_recon_locations,n_raw_images*sizeof(float),cudaMemcpyHostToDevice);
 
-    float * weights;
-    weights=(float*)calloc(n_raw_images,sizeof(float));
-
-    // Loop over slices
-    for (int k=0;k<n_slices_final;k++){
+    dim3 threads_thicken(32,32,1);
+    dim3 blocks_thicken(rp.nx/threads_thicken.x,rp.ny/threads_thicken.y,1);
+    
+    for (int k=0; k<n_slices_final; k++){
 	float slice_location=recon_locations[k];
-	// Calculate all of the weights for the unaveraged slices
-	float sum_weights=0;
-	for (int step=0;step<ri.n_slices_block*ri.n_blocks;step++){
-	    weights[step]=fmax(0.0f,1.0f-fabs(raw_recon_locations[step]-slice_location)/rp.slice_thickness);
-	    sum_weights+=weights[step];
-	}
-	
-	// Loop over pixels in slice k
-	for (int i=0;i<rp.nx;i++){
-	    for (int j=0;j<rp.ny;j++){
-		// Carry out the averaging
-		int out_idx=k*rp.nx*rp.ny+j*rp.nx+i;
-		for (int raw_slice=0;raw_slice<n_raw_images;raw_slice++){		    
-		    if (weights[raw_slice]!=0){
-			int raw_idx=raw_slice*rp.nx*rp.ny+j*rp.nx+i;
-			mr->ctd.final_image_stack[out_idx]+=(weights[raw_slice]/sum_weights)*temp_out[raw_idx];
-		    }
-		}
-	    }
-	}
+	thicken_slices<<<blocks_thicken,threads_thicken,n_raw_images*sizeof(float)>>>(mr->ctd.d_final_image_stack,d_temp_out,d_raw_recon_locations,k,slice_location);
+	gpuErrchk( cudaPeekAtLastError() );
+	gpuErrchk( cudaDeviceSynchronize() );
     }
 
+    cudaMemcpy(mr->ctd.final_image_stack,mr->ctd.d_final_image_stack,rp.nx*rp.ny*n_slices_final*sizeof(float),cudaMemcpyDeviceToHost);
+
     // Free stuff allocated inside cleanup
-    free(temp_out);
+    cudaFree(d_raw_recon_locations);
+    cudaFree(d_temp_out);
+    cudaFree(mr->ctd.d_final_image_stack);
+
     free(recon_locations);
     free(raw_recon_locations);
-    free(weights);
-
+    
     return 0;
 }

@@ -45,7 +45,7 @@ obj/backproject_cpu.o: backproject_cpu.cu $(IDIR_RECON)backproject_cpu.h
 obj/finalize_image_stack_cpu.o: finalize_image_stack_cpu.cu $(IDIR_RECON)finalize_image_stack_cpu.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<
 
-obj/finalize_image_stack.o: finalize_image_stack.cu $(IDIR_RECON)finalize_image_stack.h
+obj/finalize_image_stack.o: finalize_image_stack.cu $(IDIR_RECON)finalize_image_stack.h $(IDIR_RECON)finalize_image_stack.cuh
 	$(NVCC) $(CFLAGS) -c -o $@ $<
 
 
