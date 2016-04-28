@@ -20,17 +20,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctbb_macros.h>
 #include <recon_structs.h>
 #include <preprocessing.cuh>
 #include <preprocessing.h>
 #include <math.h>
 
-
-void float_debug(float * array, size_t numel, const char * filename){
-    FILE * fid=fopen(filename,"w");
-    fwrite(array,sizeof(float),numel,fid);
-    fclose(fid);
-}
 
 /* Adaptive filtering from Kachelreiss and Kalendar 2001 */
 int adaptive_filter_kk(struct recon_metadata * mr){

@@ -30,6 +30,14 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     }
 }
 
+/* Debugging */
+#define FLOAT_DEBUG(array_ptr,numel,file) float_debug(array_ptr,numel,file);
+inline void float_debug(float * array, size_t numel, const char * filename){
+    FILE * fid=fopen(filename,"w");
+    fwrite(array,sizeof(float),numel,fid);
+    fclose(fid);
+}
+
 /* Timing */
 // Mini macros (you probably don't need to use these directly
 #define __TIMING_VARIABLE__ milli
