@@ -32,11 +32,9 @@ int finalize_image_stack(struct recon_metadata * mr){
     cudaMemcpyToSymbol(d_ri,&mr->ri,sizeof(struct recon_info),0,cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(d_rp,&mr->rp,sizeof(struct recon_params),0,cudaMemcpyHostToDevice);
 
-    // This will be deleted eventually
     float * d_raw_image_stack;
     cudaMalloc(&d_raw_image_stack,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon*sizeof(float));
     cudaMemcpy(d_raw_image_stack,mr->ctd.image,mr->rp.nx*mr->rp.ny*mr->ri.n_slices_recon*sizeof(float),cudaMemcpyHostToDevice);
-    // end delete block
 
     float * d_temp_out;
     cudaMalloc(&d_temp_out,rp.nx*rp.ny*ri.n_slices_recon*sizeof(float));

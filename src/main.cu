@@ -225,6 +225,7 @@ int main(int argc, char ** argv){
     }
 
     // Step 6: Reorder and thicken slices as needed
+    log(mr.flags.verbose,"----------------------------\n");
     log(mr.flags.verbose,"Finalizing image stack...\n");
     
     if (mr.flags.no_gpu==1){
