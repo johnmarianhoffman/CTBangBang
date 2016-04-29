@@ -157,7 +157,9 @@ int main(int argc, char ** argv){
     }
 
     // --timing cuda events
-    TIMER_INIT();
+    TIMER_INIT();    
+    TIMER_MASTER_INIT();
+    TIMER_MASTER_START();
 
     /* --- Step 1-3 handled by functions in setup.cu --- */
     // Step 1: Parse input file
@@ -194,7 +196,7 @@ int main(int argc, char ** argv){
 	// Step 3: Extract raw data from file into memory
 	log(mr.flags.verbose,"Reading raw data from file...\n");
 	extract_projections(&mr);
-
+    
 	/* --- Step 3.5: Adaptive filtration handled by preprocessing.cu ---*/
 	// Step 3.5: Adaptive filtration of raw data to reduce streak artifacts
 	log(mr.flags.verbose,"Running adaptive filtering...\n");
@@ -234,13 +236,16 @@ int main(int argc, char ** argv){
     else{
 	TIME_EXEC(finalize_image_stack(&mr),mr.flags.timing,"reordering and thickening slices");
     }
-    
+
     // Step 7: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
     log(mr.flags.verbose,"Writing image data to %s%s.img\n",mr.output_dir,mr.rp.raw_data_file);
     finish_and_cleanup(&mr);
 
-    log(mr.flags.verbose,"Done.\n");
+    TIMER_MASTER_END();
+    TIMER_MASTER_PRINT(mr.flags.timing,"entire reconstruction");
+
+    log(mr.flags.verbose,"\nDone.\n");
 
     cudaDeviceReset();
     return 0;
