@@ -54,6 +54,17 @@ inline void print_time(int flag, const char * message,float time){
 	printf("%0.2f ms for %s\n",time,message);
 }
 
+#define __MASTER_TIMING_VARIABLE__ m_milli
+#define TIMER_MASTER_INIT() cudaEvent_t m_start,m_stop; float __MASTER_TIMING_VARIABLE__ = 0.0f;
+#define TIMER_MASTER_START() cudaEventCreate(&m_start);cudaEventCreate(&m_stop);cudaEventRecord(m_start);
+#define TIMER_MASTER_END() cudaEventRecord(m_stop);			\
+    cudaEventSynchronize(m_stop);					\
+    cudaEventElapsedTime(&__MASTER_TIMING_VARIABLE__,m_start,m_stop);	\
+    cudaEventDestroy(m_start);						\
+    cudaEventDestroy(m_stop);
+#define TIMER_MASTER_PRINT(flag,message) print_time(flag,message,__MASTER_TIMING_VARIABLE__);
+
+
 // This is what we use to time a function call
 #define TIME_EXEC(function_call,flag,message) TIMER_START(); function_call; TIMER_END(); TIMER_PRINT(flag,message);
 
