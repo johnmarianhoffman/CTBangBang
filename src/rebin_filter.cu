@@ -165,14 +165,13 @@ void rebin_nffs(struct recon_metadata *mr){
     dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
 
     reshape_out<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
-    
-    //cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
 
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
+	cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"rebin.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/rebin.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.rebin,sizeof(float),cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull-2*cg.add_projections_ffs)/mr->ri.n_ffs,outfile);
 	fclose(outfile);
@@ -234,8 +233,8 @@ void rebin_pffs(struct recon_metadata *mr){
 	float * h_fs=(float*)calloc(mr->ri.n_proj_pull*cg.n_rows_raw*cg.n_channels,sizeof(float));
 	cudaMemcpy(h_fs,d_fs,mr->ri.n_proj_pull*cg.n_rows_raw*cg.n_channels*sizeof(float),cudaMemcpyDeviceToHost);
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"h_fs.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/h_fs.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(h_fs,sizeof(float),mr->ri.n_proj_pull*cg.n_rows_raw*cg.n_channels,outfile);
 	fclose(outfile);
@@ -296,8 +295,8 @@ void rebin_pffs(struct recon_metadata *mr){
 	float * h_rebin_t=(float*)calloc(cg.n_channels_oversampled*cg.n_rows*ri.n_proj_pull/ri.n_ffs,sizeof(float));
 	cudaMemcpy(h_rebin_t,d_rebin_t,cg.n_channels_oversampled*cg.n_rows*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToHost);
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"rebin_t.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/rebin_t.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(h_rebin_t,sizeof(float),cg.n_channels_oversampled*cg.n_rows*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
@@ -360,13 +359,14 @@ void rebin_pffs(struct recon_metadata *mr){
 
     reshape_out<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
     
-    cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
+
 
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
+	cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"rebin.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/rebin.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.rebin,sizeof(float),cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull-2*cg.add_projections_ffs)/mr->ri.n_ffs,outfile);
 	fclose(outfile);
@@ -444,15 +444,15 @@ void rebin_zffs(struct recon_metadata *mr){
 	cudaMemcpyAsync(h_fs_2,&d_fs[cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs],cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToHost,stream2);    
 
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"reshape_1.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/reshape_1.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(h_fs_1,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"reshape_2.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/reshape_2.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(h_fs_1,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
@@ -505,8 +505,8 @@ void rebin_zffs(struct recon_metadata *mr){
 	cudaMemcpy(h_b_lookup_2,d_beta_lookup_2,cg.n_channels*sizeof(float),cudaMemcpyDeviceToHost);
 
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"beta_lookup_1.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/beta_lookup_1.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(h_b_lookup_1,sizeof(float),cg.n_channels,outfile);
 	fwrite(h_b_lookup_2,sizeof(float),cg.n_channels,outfile);
@@ -540,9 +540,15 @@ void rebin_zffs(struct recon_metadata *mr){
 
 	z1_rebin<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);
 	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,2*i);
+	gpuErrchk( cudaPeekAtLastError() );
+	gpuErrchk( cudaDeviceSynchronize() );
+
 	
 	z2_rebin<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
 	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
+	gpuErrchk( cudaPeekAtLastError() );
+	gpuErrchk( cudaDeviceSynchronize() );
+
     }
 
     //Reshape into array ready for backprojection
@@ -555,14 +561,13 @@ void rebin_zffs(struct recon_metadata *mr){
     dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
 
     reshape_out<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
-    
-    //cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
-    
+
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
+	cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"rebin.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/rebin.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.rebin,sizeof(float),cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull-2*cg.add_projections_ffs)/mr->ri.n_ffs,outfile);
 	fclose(outfile);
@@ -682,29 +687,29 @@ void rebin_affs(struct recon_metadata *mr){
 	cudaMemcpyAsync(h_fs_4,&d_fs[3*cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs],cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToHost,stream4);    
 
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"reshape_1.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/reshape_1.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(h_fs_1,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"reshape_2.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/reshape_2.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(h_fs_2,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"reshape_3.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/reshape_3.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(h_fs_3,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"reshape_4.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/reshape_4.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(h_fs_4,sizeof(float),cg.n_channels*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
@@ -776,15 +781,15 @@ void rebin_affs(struct recon_metadata *mr){
 	cudaMemcpy(h_rebin_t2,d_rebin_t2,cg.n_channels_oversampled*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToHost);
 
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"rebin_t1.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/rebin_t1.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(h_rebin_t1,sizeof(float),cg.n_channels_oversampled*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
 	
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"rebin_t2.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/rebin_t2.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(h_rebin_t2,sizeof(float),cg.n_channels_oversampled*cg.n_rows_raw*ri.n_proj_pull/ri.n_ffs,outfile);
 	fclose(outfile);
@@ -814,15 +819,15 @@ void rebin_affs(struct recon_metadata *mr){
 	cudaMemcpy(h_b_lookup_2,d_beta_lookup_2,cg.n_channels_oversampled*sizeof(float),cudaMemcpyDeviceToHost);
 	
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"beta_lookup_1.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/beta_lookup_1.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(h_b_lookup_1,sizeof(float),cg.n_channels_oversampled,outfile);
 	fclose(outfile);
 
 	memset(fullpath,0,4096+255);
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"beta_lookup_2.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/beta_lookup_2.ct_test");
 	fopen(fullpath,"w");
 	fwrite(h_b_lookup_2,sizeof(float),cg.n_channels_oversampled,outfile);
 	fclose(outfile);
@@ -838,8 +843,8 @@ void rebin_affs(struct recon_metadata *mr){
     
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"filter.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/filter.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(h_filter,sizeof(float),2*cg.n_channels_oversampled,outfile);
 	fclose(outfile);
@@ -882,13 +887,12 @@ void rebin_affs(struct recon_metadata *mr){
     
     reshape_out<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
     
-    //cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
-    
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
+	cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"rebin.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/rebin.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.rebin,sizeof(float),cg.n_channels_oversampled*cg.n_rows*(ri.n_proj_pull-2*cg.add_projections_ffs)/ri.n_ffs,outfile);
 	fclose(outfile);

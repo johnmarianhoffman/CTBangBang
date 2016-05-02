@@ -25,6 +25,7 @@
 #define setup_h
 
 // Step 1-3 functions
+int configure_paths(struct recon_metadata *mr);
 struct recon_params configure_recon_params(char * filename);
 struct ct_geom configure_ct_geom(struct recon_metadata *mr);
 void configure_reconstruction(struct recon_metadata *mr);
