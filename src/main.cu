@@ -40,7 +40,7 @@
 #include <finalize_image_stack_cpu.h>
 
 void log(int verbosity, const char *string, ...);
-void split_path_file(char**p, char**f, char *pf);
+
 
 void usage(){
     printf("\n");
@@ -105,20 +105,7 @@ int main(int argc, char ** argv){
 
     log(mr.flags.verbose,"CHECKING INPUT PARAMETERS AND CONFIGURING RECONSTRUCTION\n"
 	"\n");
-    
-    /* --- Get working directory and User's home directory --- */
-    struct passwd *pw=getpwuid(getuid());
-    
-    const char * homedir=pw->pw_dir;
-    strcpy(mr.homedir,homedir);
-    char full_exe_path[4096]={0};
-    char * exe_path=(char*)calloc(4096,sizeof(char));
-    char * exe_name=(char*)calloc(255,sizeof(char));
-    readlink("/proc/self/exe",full_exe_path,4096);
-    split_path_file(&exe_path,&exe_name,full_exe_path);
-    strcpy(mr.install_dir,exe_path);
-    mr.install_dir[strlen(mr.install_dir)-1]=0;
-    
+
     /* --- Step 0: configure our processor (CPU or GPU) */
     // We want to send to the GPU furthest back in the list which is
     // unlikely to have a display connected.  We also check for the
@@ -167,12 +154,28 @@ int main(int argc, char ** argv){
     mr.rp=configure_recon_params(argv[argc-1]);
 
     /* --- Check for defined output directory, set to desktop if empty --- */
-    strcpy(mr.output_dir,mr.rp.output_dir);
-    if (strcmp(mr.output_dir,"")==0){
-	char fullpath[4096+255];
-	strcpy(fullpath,mr.homedir);
-	strcat(fullpath,"/Desktop/");
-	strcpy(mr.output_dir,fullpath);
+    /* Configure various file paths and test that we can write out */
+    int ctbb_err=configure_paths(&mr);
+    log(mr.flags.verbose,"\n");
+    log(mr.flags.verbose,"Raw data file:              %s/%s\n",mr.rp.raw_data_dir,mr.rp.raw_data_file);
+    log(mr.flags.verbose,"Output file:                %s/%s\n",mr.rp.output_dir,mr.rp.output_file);
+    log(mr.flags.verbose,"Testing files written to:   %s/\n",mr.rp.output_dir);
+    log(mr.flags.verbose,"Current wd:                 %s/\n",mr.cwd);
+    log(mr.flags.verbose,"CTBB run dir:               %s/\n",mr.install_dir);
+    log(mr.flags.verbose,"\n");
+
+    if (ctbb_err){
+	switch (ctbb_err){
+	case 1:{
+	    perror("Cannot read specified raw file.  Ensure the path is correct and you have permission to read the file");
+	    break;
+	}
+	case 2:{
+	    perror("Cannot write to specified output file/directory.  Ensure the path is correct and you have permission to write to the directory");
+	    break;
+	}	    
+	}
+	exit(13);
     }
     
     // Step 2a: Setup scanner geometry
@@ -239,7 +242,7 @@ int main(int argc, char ** argv){
 
     // Step 7: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
-    log(mr.flags.verbose,"Writing image data to %s%s.img\n",mr.output_dir,mr.rp.raw_data_file);
+    log(mr.flags.verbose,"Writing image data to %s/%s\n",mr.rp.output_dir,mr.rp.output_file);
     finish_and_cleanup(&mr);
 
     TIMER_MASTER_END();
@@ -260,12 +263,4 @@ void log(int verbosity, const char *string,...){
 	vprintf(string,args);
 	va_end(args);
     } 
-}
-
-void split_path_file(char**p, char**f, char *pf) {
-    char *slash = pf, *next;
-    while ((next = strpbrk(slash + 1, "\\/"))) slash = next;
-    if (pf != slash) slash++;
-    *p = strndup(pf, slash - pf);
-    *f = strdup(slash);
 }

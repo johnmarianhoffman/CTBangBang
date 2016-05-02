@@ -32,7 +32,77 @@
 #define pi 3.1415926535897f
 #define BLOCK_SLICES 32
 
+void split_path_file(char**p, char**f, char *pf);
 int array_search(float key,double * array,int numel_array,int search_type);
+void remove_trailing_slash(char * str);
+
+int configure_paths(struct recon_metadata *mr){
+    
+    /* --- Get working directory and User's home directory --- */
+    struct passwd *pw=getpwuid(getuid());    
+    const char * home_dir=pw->pw_dir;
+    strcpy(mr->home_dir,home_dir);
+    getcwd(mr->cwd,4096*sizeof(char));
+
+    /* --- Get where the executable is running ---*/
+    char full_exe_path[4096]={0};
+    char * exe_path=(char*)calloc(4096,sizeof(char));
+    char * exe_name=(char*)calloc(255,sizeof(char));
+    readlink("/proc/self/exe",full_exe_path,4096);
+    split_path_file(&exe_path,&exe_name,full_exe_path);
+    strcpy(mr->install_dir,exe_path);
+    mr->install_dir[strlen(mr->install_dir)-1]=0;
+
+    /* --- Check for defined output path ---*/
+    // if not defined, set to current working directory
+    if (strcmp(mr->rp.output_dir,"")==0)
+	strcpy(mr->rp.output_dir,mr->cwd);
+
+    /* --- Check for output file name --- */
+    // if not defined, set to rawdatafile.img
+    if(strcmp(mr->rp.output_file,"")==0){
+	char fullpath[4096+255]={0};
+	sprintf(fullpath,"%s.img",mr->rp.raw_data_file);
+	strcpy(mr->rp.output_file,fullpath);
+    }
+
+    // Cleanup directory strings
+    remove_trailing_slash(mr->home_dir);
+    remove_trailing_slash(mr->install_dir);
+    remove_trailing_slash(mr->cwd);    
+    remove_trailing_slash(mr->rp.output_dir);
+    remove_trailing_slash(mr->rp.raw_data_dir);    
+
+    /* Check to make sure we can read the raw data file */
+    char fullpath[4096+255]={0};
+    FILE * fid;    
+    memset(fullpath,0,4096+255);
+    sprintf(fullpath,"%s/%s",mr->rp.raw_data_dir,mr->rp.raw_data_file);
+    
+    fid=fopen(fullpath,"r");
+    if (fid==NULL){
+	return 1;
+    }
+    else{
+    	fclose(fid);
+    }
+    
+    /* Check to make sure we can write to output file */
+    memset(fullpath,0,4096+255);
+    sprintf(fullpath,"%s/%s",mr->rp.output_dir,mr->rp.output_file);
+
+    fid=fopen(fullpath,"w");
+    if (fid==NULL){
+	return 2;
+    }
+    else{
+    	fclose(fid);
+	// Theres a better way to do this... but for now this works
+	remove(fullpath);	
+    }
+    
+    return 0;
+}
 
 struct recon_params configure_recon_params(char * filename){
     struct recon_params prms;
@@ -61,6 +131,8 @@ struct recon_params configure_recon_params(char * filename){
 
     //Parse parameter file
     while (token!=NULL){
+
+	printf("%s\n", token);
 	if (strcmp(token,"RawDataDir:")==0){
 	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%s",prms.raw_data_dir);
@@ -73,6 +145,10 @@ struct recon_params configure_recon_params(char * filename){
 	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%s",prms.output_dir);
 	}
+	else if (strcmp(token,"OutputFile:")==0){
+	    token=strtok(NULL," \t\n%");
+	    sscanf(token,"%s",prms.output_file);
+	}	
 	else if (strcmp(token,"Nrows:")==0){
 	    token=strtok(NULL," \t\n%");
 	    sscanf(token,"%i",&prms.n_rows);
@@ -110,71 +186,71 @@ struct recon_params configure_recon_params(char * filename){
 	    sscanf(token,"%d",&prms.recon_kernel);
 	}
 	else if (strcmp(token,"Readings:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%d",&prms.n_readings); 
- 	} 
- 	else if (strcmp(token,"Xorigin:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%f",&prms.x_origin); 
- 	} 
- 	else if (strcmp(token,"Yorigin:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%f",&prms.y_origin); 
- 	} 
- 	else if (strcmp(token,"Zffs:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.z_ffs); 
- 	} 
- 	else if (strcmp(token,"Phiffs:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.phi_ffs); 
- 	} 
- 	else if (strcmp(token,"Scanner:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%s",prms.scanner); 
- 	} 
- 	else if (strcmp(token,"FileType:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.file_type); 
- 	}
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%d",&prms.n_readings); 
+	} 
+	else if (strcmp(token,"Xorigin:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%f",&prms.x_origin); 
+	} 
+	else if (strcmp(token,"Yorigin:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%f",&prms.y_origin); 
+	} 
+	else if (strcmp(token,"Zffs:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%i",&prms.z_ffs); 
+	} 
+	else if (strcmp(token,"Phiffs:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%i",&prms.phi_ffs); 
+	} 
+	else if (strcmp(token,"Scanner:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%s",prms.scanner); 
+	} 
+	else if (strcmp(token,"FileType:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%i",&prms.file_type); 
+	}
 	else if (strcmp(token,"FileSubType:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.file_subtype); 
- 	} 
- 	else if (strcmp(token,"RawOffset:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.raw_data_offset); 
- 	} 
- 	else if (strcmp(token,"Nx:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.nx); 
- 	} 
- 	else if (strcmp(token,"Ny:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.ny); 
- 	}
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%i",&prms.file_subtype); 
+	} 
+	else if (strcmp(token,"RawOffset:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%i",&prms.raw_data_offset); 
+	} 
+	else if (strcmp(token,"Nx:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%i",&prms.nx); 
+	} 
+	else if (strcmp(token,"Ny:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%i",&prms.ny); 
+	}
 	else if (strcmp(token,"TubeStartAngle:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%f",&prms.tube_start_angle); 
- 	}
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%f",&prms.tube_start_angle); 
+	}
 	else if (strcmp(token,"TubeStartAngle:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%f",&prms.tube_start_angle); 
- 	}
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%f",&prms.tube_start_angle); 
+	}
 	else if (strcmp(token,"AdaptiveFiltration:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%f",&prms.adaptive_filtration_s); 
- 	}
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%f",&prms.adaptive_filtration_s); 
+	}
 	else if (strcmp(token,"NSlices:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.n_slices); 
- 	}
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%i",&prms.n_slices); 
+	}
 
 	else if (strcmp(token,"TableDir:")==0){
 	    // Note, this parameter is ignored if not using a binary file
 	    char tmp[4096]={0};
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%s",tmp);
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%s",tmp);
 	    if (strcmp(tmp,"out")==0){
 		prms.table_dir=1;
 	    }
@@ -185,12 +261,12 @@ struct recon_params configure_recon_params(char * filename){
 		printf("WARNING: TableDir parameter must be 'in' or 'out' (no quotes).  Defaulting to 'out'.\n");
 		prms.table_dir=1;
 	    }
- 	} 
- 	else { 
- 	    //token=strtok(NULL," \t\n%"); 
- 	} 
+	} 
+	else { 
+	    //token=strtok(NULL," \t\n%"); 
+	} 
 
- 	token=strtok(NULL," \t\n%"); 
+	token=strtok(NULL," \t\n%"); 
     } 
 
     // Perform some sanity checks to make sure that we have read in the "essentials"
@@ -367,10 +443,10 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 	break;
     case 0: // Non-standard scanner (in this case Fred Noo's Simulated Scanner)
 
-	//float det_spacing_1=1.4083f;
-	//float det_spacing_2=1.3684f;
+	    //float det_spacing_1=1.4083f;
+	    //float det_spacing_2=1.3684f;
 	 
-	// Physical geometry of the scanner (cannot change from scan to scan) 
+	    // Physical geometry of the scanner (cannot change from scan to scan) 
 	cg.r_f=570.0f; 
 	cg.src_to_det=1040.0f; 
 	cg.anode_angle=7.0f*pi/180.0f; 
@@ -393,7 +469,7 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 
     case 1: // Definition AS 
 	
-	// Physical geometry of the scanner (cannot change from scan to scan) 
+	    // Physical geometry of the scanner (cannot change from scan to scan) 
 	cg.r_f=595.0f; 
 	cg.src_to_det=1085.6f; 
 	cg.anode_angle=7.0f*pi/180.0f; 
@@ -416,28 +492,28 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 
     case 2: // Sensation 64 
 
- 	// Physical geometry of the scanner (cannot change from scan to scan) 
- 	cg.r_f=570.0f; 
- 	cg.src_to_det=1040.0f; 
- 	//cg.anode_angle=12.0f*pi/180.0f;
- 	cg.anode_angle=7.0f*pi/180.0f;
- 	cg.fan_angle_increment=0.07758621f*pi/180.0f;
- 	//cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f);
- 	cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f); 	
- 	cg.central_channel=334.25f; 
+	    // Physical geometry of the scanner (cannot change from scan to scan) 
+	cg.r_f=570.0f; 
+	cg.src_to_det=1040.0f; 
+	//cg.anode_angle=12.0f*pi/180.0f;
+	cg.anode_angle=7.0f*pi/180.0f;
+	cg.fan_angle_increment=0.07758621f*pi/180.0f;
+	//cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f);
+	cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f); 	
+	cg.central_channel=334.25f; 
 
- 	// Size and setup of the detector helix 
- 	cg.n_proj_turn=1160; 
- 	cg.n_proj_ffs=cg.n_proj_turn*pow(2,rp.phi_ffs)*pow(2,rp.z_ffs); 
- 	cg.n_channels=672; 
- 	cg.n_channels_oversampled=2*cg.n_channels; 
- 	cg.n_rows=(unsigned int)rp.n_rows; 
- 	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
- 	cg.z_rot=rp.pitch_value;
- 	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
- 	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
+	// Size and setup of the detector helix 
+	cg.n_proj_turn=1160; 
+	cg.n_proj_ffs=cg.n_proj_turn*pow(2,rp.phi_ffs)*pow(2,rp.z_ffs); 
+	cg.n_channels=672; 
+	cg.n_channels_oversampled=2*cg.n_channels; 
+	cg.n_rows=(unsigned int)rp.n_rows; 
+	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
+	cg.z_rot=rp.pitch_value;
+	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
+	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 
- 	break; 
+	break; 
     } 
 
     cg.acq_fov=rp.acq_fov; 
@@ -459,10 +535,11 @@ void configure_reconstruction(struct recon_metadata *mr){
     mr->tube_angles=(float*)calloc(rp.n_readings,sizeof(float));
     mr->table_positions=(double*)calloc(rp.n_readings,sizeof(double));
     
-    strcat(rp.raw_data_dir,rp.raw_data_file);
+    char fullpath[4096+255]={0};
+    sprintf(fullpath,"%s/%s",rp.raw_data_dir,rp.raw_data_file);
     
     FILE * raw_file;
-    raw_file=fopen(rp.raw_data_dir,"rb");
+    raw_file=fopen(fullpath,"rb");
     if (raw_file==NULL){
 	perror("Raw data file not found.");
 	exit(1);	
@@ -588,14 +665,14 @@ void configure_reconstruction(struct recon_metadata *mr){
     // Check "testing" flag, write raw to disk if set
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"table_positions.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/table_positions.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->table_positions,sizeof(double),rp.n_readings,outfile);
 	fclose(outfile);
 
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"tube_angles.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/tube_angles.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(mr->tube_angles,sizeof(float),rp.n_readings,outfile);
 	fclose(outfile);
@@ -752,8 +829,9 @@ void extract_projections(struct recon_metadata * mr){
     FILE * raw_file;
     struct recon_params rp=mr->rp;
     struct ct_geom cg=mr->cg;
-    strcat(rp.raw_data_dir,rp.raw_data_file);
-    raw_file=fopen(rp.raw_data_dir,"rb");
+    char fullpath[4096+255]={0};
+    sprintf(fullpath,"%s/%s",rp.raw_data_dir,rp.raw_data_file);
+    raw_file=fopen(fullpath,"rb");
     
     switch (mr->rp.file_type){
     case 0:{ // binary
@@ -803,7 +881,7 @@ void extract_projections(struct recon_metadata * mr){
 	    ReadForceFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder);
 
 	    for (int j=0;j<cg.n_channels*cg.n_rows_raw;j++){
-	    	mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j];
+		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j];
 	    }
 
 	}
@@ -820,9 +898,9 @@ void extract_projections(struct recon_metadata * mr){
 
     // Check "testing" flag, write raw to disk if set
     if (mr->flags.testing){
-	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"raw.ct_test");
+	memset(fullpath,0,4096+255);
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/raw.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.raw,sizeof(float),cg.n_channels*cg.n_rows_raw*mr->ri.n_proj_pull,outfile);
 	fclose(outfile);
@@ -836,9 +914,9 @@ void finish_and_cleanup(struct recon_metadata * mr){
 
     int n_slices_final=floor(fabs(mr->rp.end_pos-mr->rp.start_pos)/mr->rp.slice_thickness)+1;
     
-    // Write the image data to disk    
+    // Write the image data to disk
     char fullpath[4096+255]={0};
-    sprintf(fullpath,"%s%s.img",mr->output_dir,mr->rp.raw_data_file);
+    sprintf(fullpath,"%s/%s",mr->rp.output_dir,mr->rp.output_file);
     FILE * outfile=fopen(fullpath,"w");
     fwrite(mr->ctd.final_image_stack,sizeof(float),mr->rp.nx*mr->rp.ny*n_slices_final,outfile);
     fclose(outfile);
@@ -851,6 +929,23 @@ void finish_and_cleanup(struct recon_metadata * mr){
     free(mr->tube_angles);
     free(mr->table_positions);
 }
+
+
+void remove_trailing_slash(char * str){
+    size_t len=strlen(str);
+    if ((len>0)&&(str[len-1]=='/')){
+	str[len-1]='\0';
+    }
+}
+
+void split_path_file(char**p, char**f, char *pf) {
+    char *slash = pf, *next;
+    while ((next = strpbrk(slash + 1, "\\/"))) slash = next;
+    if (pf != slash) slash++;
+    *p = strndup(pf, slash - pf);
+    *f = strdup(slash);
+}
+
 
 int array_search(float key,double * array,int numel_array,int search_type){
     int idx=0;
