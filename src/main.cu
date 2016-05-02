@@ -40,7 +40,7 @@
 #include <finalize_image_stack_cpu.h>
 
 void log(int verbosity, const char *string, ...);
-
+void empty_prm(const char * filepath);
 
 void usage(){
     printf("\n");
@@ -56,7 +56,6 @@ void usage(){
     printf("Copyright John Hoffman 2015\n\n");
     exit(0);
 }
-
 
 int main(int argc, char ** argv){
 
@@ -75,6 +74,7 @@ int main(int argc, char ** argv){
     }
     
     for (int i=1;i<(argc-1);i++){
+
 	if (strcmp(argv[i],"-t")==0){
 	    mr.flags.testing=1;
 	}
@@ -93,6 +93,9 @@ int main(int argc, char ** argv){
 	}
 	else if (strcmp(argv[i],"--benchmark")==0){
 	    mr.flags.benchmark=1;
+	}
+	else if (strcmp(argv[i],"--empty-prm")==0){
+	    empty_prm(argv[argc-1]);
 	}
 	else{
 	    usage();
@@ -263,4 +266,56 @@ void log(int verbosity, const char *string,...){
 	vprintf(string,args);
 	va_end(args);
     } 
+}
+
+void empty_prm(const char * filepath){
+    char fullpath[4096+255]={0};
+    strcpy(fullpath,filepath);
+    //getcwd(fullpath,4096+255);
+    //strcat(fullpath,"/empty_prm.prm");
+
+    FILE * fid=fopen(fullpath,"w");
+
+    fprintf(fid,
+	    "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+	    "%%  This is an empty prm file for       %%\n"
+	    "%%  the CT reconstruction software      %%\n"
+	    "%%  CTBangBang.                         %%\n"
+	    "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"	    
+	    ""
+	    "\n"
+	    " %% Fields are TAB delimited %% "
+	    "\n"
+	    "RawDataDir:\n"
+	    "RawDataFile:\n"
+	    "OutputDir:\n"
+	    "OutputFile:\n"
+	    "Nrows:\n"
+	    "CollSlicewidth:\n"
+	    "StartPos:\n"
+	    "EndPos:\n"
+	    "TableFeed:\n"
+	    "SliceThickness:\n"
+	    "AcqFOV:\n"
+	    "ReconFOV:\n"
+	    "ReconKernel:\n"
+	    "Readings:\n"
+	    "Xorigin:\n"
+	    "Yorigin:\n"
+	    "Zffs:\n"
+	    "Phiffs:\n"
+	    "Scanner:\n"
+	    "FileType:\n"
+	    "FileSubType:\n"
+	    "RawOffset:\n"
+	    "Nx:\n"
+	    "Ny:\n"
+	    "TubeStartAngle:\n"
+	    "TubeStartAngle:\n"
+	    "AdaptiveFiltration:\n"
+	    "NSlices:\n"
+	    "TableDir:\n");
+	    
+    fclose(fid);
+    exit(0);
 }
