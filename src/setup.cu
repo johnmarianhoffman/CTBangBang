@@ -640,7 +640,7 @@ void configure_reconstruction(struct recon_metadata *mr){
 
     // override end_pos if user has set the number of slices
     if (rp.n_slices!=0){
-	rp.end_pos=rp.start_pos+(rp.n_slices-1)*rp.slice_thickness;
+	rp.end_pos=rp.start_pos+(rp.n_slices-1)*rp.slice_thickness*recon_direction;
     }
     
     float recon_start_pos = rp.start_pos - recon_direction*rp.slice_thickness;
