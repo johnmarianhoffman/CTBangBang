@@ -202,7 +202,11 @@ struct recon_params configure_recon_params(char * filename){
 	else if (strcmp(token,"Phiffs:")==0){ 
 	    token=strtok(NULL," \t\n%"); 
 	    sscanf(token,"%i",&prms.phi_ffs); 
-	} 
+	}
+	else if (strcmp(token,"Diagffs:")==0){ 
+	    token=strtok(NULL," \t\n%"); 
+	    sscanf(token,"%i",&prms.d_ffs); 
+	}
 	else if (strcmp(token,"Scanner:")==0){ 
 	    token=strtok(NULL," \t\n%"); 
 	    sscanf(token,"%s",prms.scanner); 
@@ -467,7 +471,7 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 
     case 1: // Definition AS 
 	
-	    // Physical geometry of the scanner (cannot change from scan to scan) 
+	// Physical geometry of the scanner (cannot change from scan to scan) 
 	cg.r_f=595.0f; 
 	cg.src_to_det=1085.6f; 
 	cg.anode_angle=7.0f*pi/180.0f; 
@@ -490,7 +494,7 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 
     case 2: // Sensation 64 
 
-	    // Physical geometry of the scanner (cannot change from scan to scan) 
+	// Physical geometry of the scanner (cannot change from scan to scan) 
 	cg.r_f=570.0f; 
 	cg.src_to_det=1040.0f; 
 	//cg.anode_angle=12.0f*pi/180.0f;
@@ -519,6 +523,11 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
     if (rp.phi_ffs==1){
 	cg.central_channel=floor(cg.central_channel)+0.375f;
 	//cg.central_channel+=0.375f; 
+    }
+
+    // DEBUG KLUDGE TO test force rebinning
+    if (cg.n_channels==920){
+	mr->flags.siemens_force=1;
     }
     
     return cg;

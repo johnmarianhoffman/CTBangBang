@@ -33,6 +33,7 @@
 #include <setup.h>
 #include <preprocessing.h>
 #include <rebin_filter.h>
+#include <rebin_filter_force.h>
 #include <rebin_filter_cpu.h>
 #include <backproject.h>
 #include <backproject_cpu.h>
@@ -209,7 +210,7 @@ int main(int argc, char ** argv){
 
 	TIME_EXEC(adaptive_filter_kk(&mr),mr.flags.timing,"adaptive_filtration");
 
-	/* --- Step 4 handled by functions in rebin_filter.cu --- */
+	/* --- Step 4 handled by functions in rebin_filter.cu and rebin_filter_force.cu--- */
 	// Step 4: Rebin and filter
 	log(mr.flags.verbose,"Rebinning and filtering data...\n");
 
@@ -217,7 +218,12 @@ int main(int argc, char ** argv){
 	    TIME_EXEC(rebin_filter_cpu(&mr),mr.flags.timing,"rebinning and filtering");
 	}
 	else{
-	    TIME_EXEC(rebin_filter(&mr),mr.flags.timing,"rebinning and filtering");
+	    if (mr.flags.siemens_force){
+		TIME_EXEC(rebin_filter_force(&mr),mr.flags.timing,"rebinning and filtering");
+	    }
+	    else{
+		TIME_EXEC(rebin_filter(&mr),mr.flags.timing,"rebinning and filtering");
+	    }
 	}
 
 	/* --- Step 5 handled by functions in backproject.cu ---*/

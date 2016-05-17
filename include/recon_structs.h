@@ -42,6 +42,7 @@ struct recon_params{
     int n_readings;
     int z_ffs;
     int phi_ffs;
+    int d_ffs;
     char scanner[4096+255];
     int file_type;
     int file_subtype;
@@ -125,6 +126,7 @@ struct flags{
     int device_number;
     int timing;
     int benchmark;
+    int siemens_force;
 };
     
 struct recon_metadata {
