@@ -61,22 +61,22 @@ struct block_info{
 };
 
 struct recon_info{
-    int n_ffs;
+    size_t n_ffs;
     float data_begin_pos;
     float data_end_pos;
     float allowed_begin;
     float allowed_end;
-    int n_slices_requested;
-    int n_slices_recon;
-    int n_slices_block;
-    int n_blocks;
-    int idx_slice_start;
-    int idx_slice_end; 
+    size_t n_slices_requested;
+    size_t n_slices_recon;
+    size_t n_slices_block;
+    size_t n_blocks;
+    size_t idx_slice_start;
+    size_t idx_slice_end; 
     float recon_start_pos;
     float recon_end_pos;
-    int idx_pull_start;
-    int idx_pull_end;
-    int n_proj_pull;
+    size_t idx_pull_start;
+    size_t idx_pull_end;
+    size_t n_proj_pull;
     struct block_info cb;
 };
     
@@ -92,12 +92,12 @@ struct ct_data{
 };
     
 struct ct_geom{
-    unsigned int n_proj_turn;
-    unsigned int n_proj_ffs;
-    unsigned int n_channels;
-    unsigned int n_channels_oversampled;
-    unsigned int n_rows;
-    unsigned int n_rows_raw;
+    size_t n_proj_turn;
+    size_t n_proj_ffs;
+    size_t n_channels;
+    size_t n_channels_oversampled;
+    size_t n_rows;
+    size_t n_rows_raw;
     float r_f;
     float z_rot;
     float theta_cone;
@@ -106,9 +106,9 @@ struct ct_geom{
     float anode_angle;
     float central_channel;
     float acq_fov;
-    int projection_offset;
-    int add_projections;
-    int add_projections_ffs;
+    size_t projection_offset;
+    size_t add_projections;
+    size_t add_projections_ffs;
     int reverse_row_interleave;
     int reverse_channel_interleave;
 
