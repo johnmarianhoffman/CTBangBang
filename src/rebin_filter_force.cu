@@ -948,22 +948,22 @@ void load_filter_force(float * f_array,struct recon_metadata * mr){
     FILE * filter_file;
     switch (rp.recon_kernel){
     case -100:{
-	sprintf(fullpath,"%s/resources/filters/f_%i_ramp.txt",mr->install_dir,cg.n_channels);
+	sprintf(fullpath,"%s/resources/filters/f_%lu_ramp.txt",mr->install_dir,cg.n_channels);
 	break;}
     case -1:{
-	sprintf(fullpath,"%s/resources/filters/f_%i_exp.txt",mr->install_dir,cg.n_channels);
+	sprintf(fullpath,"%s/resources/filters/f_%lu_exp.txt",mr->install_dir,cg.n_channels);
 	break;}
     case 1:{
-	sprintf(fullpath,"%s/resources/filters/f_%i_smooth.txt",mr->install_dir,cg.n_channels);
+	sprintf(fullpath,"%s/resources/filters/f_%lu_smooth.txt",mr->install_dir,cg.n_channels);
 	break;}
     case 2:{
-	sprintf(fullpath,"%s/resources/filters/f_%i_medium.txt",mr->install_dir,cg.n_channels);
+	sprintf(fullpath,"%s/resources/filters/f_%lu_medium.txt",mr->install_dir,cg.n_channels);
 	break;}
     case 3:{
-	sprintf(fullpath,"%s/resources/filters/f_%i_sharp.txt",mr->install_dir,cg.n_channels);
+	sprintf(fullpath,"%s/resources/filters/f_%lu_sharp.txt",mr->install_dir,cg.n_channels);
 	break;}
     default:{
-	sprintf(fullpath,"%s/resources/filters/f_%i_b%i.txt",mr->install_dir,cg.n_channels,rp.recon_kernel);
+	sprintf(fullpath,"%s/resources/filters/f_%lu_b%i.txt",mr->install_dir,cg.n_channels,rp.recon_kernel);
 	break;}
     }
 
