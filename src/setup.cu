@@ -401,11 +401,11 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 	    }
 	    else if (strcmp(token,"NProjTurn:")==0){
 		token=strtok(NULL," \t\n%");
-		sscanf(token,"%i",&cg.n_proj_turn);
+		sscanf(token,"%lu",&cg.n_proj_turn);
 	    }
 	    else if (strcmp(token,"NChannels:")==0){
 		token=strtok(NULL," \t\n%");
-		sscanf(token,"%i",&cg.n_channels);
+		sscanf(token,"%lu",&cg.n_channels);
 	    }
 	    else if (strcmp(token,"ReverseRowInterleave:")==0){
 		token=strtok(NULL," \t\n%");
