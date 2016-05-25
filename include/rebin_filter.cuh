@@ -353,16 +353,19 @@ __global__ void a2_rebin_b(float * output,float * beta_lookup,float dr,int row){
 // Reshapes row-sheet rebinned array into projection-sheet array
 __global__ void reshape_out(float * output,float * input){
 
-    size_t offset=d_cg.add_projections;
+    unsigned long long offset=d_cg.add_projections;
 
-    size_t k = threadIdx.x+blockIdx.x*blockDim.x;//j channel
-    size_t j = threadIdx.y+blockIdx.y*blockDim.y;//k proj 
-    size_t i = threadIdx.z+blockIdx.z*blockDim.z;//i row
+    unsigned long long k = threadIdx.x+blockIdx.x*blockDim.x;// proj
+    unsigned long long j = threadIdx.y+blockIdx.y*blockDim.y;// channels
+    unsigned long long i = threadIdx.z+blockIdx.z*blockDim.z;// rows
 
-    size_t in_idx=(d_cg.n_channels_oversampled*d_ri.n_proj_pull/d_ri.n_ffs)*i+d_ri.n_proj_pull/d_ri.n_ffs*j+(k+offset);
-    size_t out_idx=k*d_cg.n_channels_oversampled*d_cg.n_rows+i*d_cg.n_channels_oversampled+j;
-
+    unsigned long long in_idx=((unsigned long long)d_cg.n_channels_oversampled*(unsigned long long)d_ri.n_proj_pull/(unsigned long long)d_ri.n_ffs)*i+(unsigned long long)d_ri.n_proj_pull/(unsigned long long)d_ri.n_ffs*j+(k+offset);
+    unsigned long long out_idx=k*(unsigned long long)d_cg.n_channels_oversampled*(unsigned long long)d_cg.n_rows+i*(unsigned long long)d_cg.n_channels_oversampled+j;
+    
     output[out_idx]=input[in_idx];
+
+    //output[out_idx]=1.0f;//input[in_idx];
+    //output[out_idx]=out_idx;
 }
 
 /* --- Filter kernel --- */

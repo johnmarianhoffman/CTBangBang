@@ -38,10 +38,8 @@ void rebin_force_dffs(struct recon_metadata *mr);
 
 int rebin_filter_force(struct recon_metadata * mr){
 
+    printf("rebinning force data\n");
 
-    printf("You made it =====!\n");
-    exit(0);
-    
     switch (mr->ri.n_ffs){
     case 1:{
 	if (mr->rp.d_ffs==1)
@@ -172,6 +170,10 @@ void rebin_force_nffs(struct recon_metadata *mr){
     size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
     dim3 threads_reshape_out(n_threads,1,1);
     dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
+
+    printf("n_proj_out: %lu\n",n_proj_out);
+    printf("thread_dims=%d,%d,%d\n",threads_reshape_out.x,threads_reshape_out.y,threads_reshape_out.z);
+    printf("block_dims=%d,%d,%d\n",blocks_reshape_out.x,blocks_reshape_out.y,blocks_reshape_out.z);
 
     reshape_out_force<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
 
@@ -366,10 +368,12 @@ void rebin_force_pffs(struct recon_metadata *mr){
     dim3 threads_reshape_out(n_threads,1,1);
     dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
 
+    printf("n_proj_out: %lu\n",n_proj_out);
+    printf("thread_dims=%d,%d,%d\n",threads_reshape_out.x,threads_reshape_out.y,threads_reshape_out.z);
+    printf("block_dims=%d,%d,%d\n",blocks_reshape_out.x,blocks_reshape_out.y,blocks_reshape_out.z);
+
     reshape_out_force<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
     
-
-
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
 	cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);

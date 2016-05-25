@@ -826,7 +826,7 @@ void update_block_info(recon_metadata *mr){
     // Reallocate our raw and rebin arrays to account for changing n_proj_pull
     mr->ctd.raw=(float*)calloc(cg.n_channels*cg.n_rows_raw*n_proj_pull,sizeof(float));
     mr->ctd.rebin=(float*)calloc(cg.n_channels_oversampled*cg.n_rows*(n_proj_pull-2*cg.add_projections_ffs)/n_ffs,sizeof(float));
-    
+
 }
 
 void extract_projections(struct recon_metadata * mr){

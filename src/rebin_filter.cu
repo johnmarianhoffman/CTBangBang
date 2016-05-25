@@ -358,14 +358,12 @@ void rebin_pffs(struct recon_metadata *mr){
     cudaMalloc(&mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float));
 
     n_threads=128;
-    size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
+    size_t n_proj_out=((mr->ri.n_proj_pull/mr->ri.n_ffs)-2*cg.add_projections);
     dim3 threads_reshape_out(n_threads,1,1);
     dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
-
+    
     reshape_out<<<blocks_reshape_out,threads_reshape_out>>>(mr->ctd.d_rebin,d_output);
     
-
-
     // Check "testing" flag, write rebin to disk if set
     if (mr->flags.testing){
 	cudaMemcpy(mr->ctd.rebin,mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float),cudaMemcpyDeviceToHost);
