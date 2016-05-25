@@ -8,7 +8,7 @@ AnodeAngle:		0.1396 % 8 degrees
 FanAngleInc:		0.00094729
 ThetaCone:		0.094719
 CentralChannel:		457.25
-NProjTurn:		1120 %1400
+NProjTurn:		1120
 NChannels:		920
 ReverseRowInterleave:	0
 ReverseChanInterleave:	0

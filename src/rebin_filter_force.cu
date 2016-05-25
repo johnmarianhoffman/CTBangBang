@@ -169,8 +169,9 @@ void rebin_force_nffs(struct recon_metadata *mr){
     n_threads=128;
     size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
     dim3 threads_reshape_out(n_threads,1,1);
-    dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
+    dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);
 
+    printf("n_proj_pull: %lu\n",ri.n_proj_pull/ri.n_ffs);
     printf("n_proj_out: %lu\n",n_proj_out);
     printf("thread_dims=%d,%d,%d\n",threads_reshape_out.x,threads_reshape_out.y,threads_reshape_out.z);
     printf("block_dims=%d,%d,%d\n",blocks_reshape_out.x,blocks_reshape_out.y,blocks_reshape_out.z);
@@ -361,13 +362,14 @@ void rebin_force_pffs(struct recon_metadata *mr){
 
     cudaFree(d_rebin_t);
 
-    //cudaMalloc(&mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float));
-
+    cudaMalloc(&mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float));
+    
     n_threads=128;
     size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
     dim3 threads_reshape_out(n_threads,1,1);
     dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
 
+    printf("n_proj_pull: %lu\n",ri.n_proj_pull/ri.n_ffs);
     printf("n_proj_out: %lu\n",n_proj_out);
     printf("thread_dims=%d,%d,%d\n",threads_reshape_out.x,threads_reshape_out.y,threads_reshape_out.z);
     printf("block_dims=%d,%d,%d\n",blocks_reshape_out.x,blocks_reshape_out.y,blocks_reshape_out.z);
