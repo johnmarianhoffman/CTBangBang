@@ -143,29 +143,29 @@ __global__ void p2_rebin_t_force(float * output,float da,int row,float * beta_lo
 }
 
 __global__ void p1_rebin_force(float* output,float da,int row,float * beta_lookup){
-    int channel = threadIdx.x+blockIdx.x*blockDim.x;
-    int proj    = threadIdx.y+blockIdx.y*blockDim.y;
+    size_t channel = threadIdx.x+blockIdx.x*blockDim.x;
+    size_t proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
-    int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
-    int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
+    size_t n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
+    size_t out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
 
     float beta  = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
     
-    output[out_idx]=tex2D(tex_a,proj+0.5f,beta_idx+0.5f); 
+    output[out_idx]=tex2D(tex_a,proj+0.5f,beta_idx+0.5f);
 }
 
 __global__ void p2_rebin_force(float* output,float da,int row,float * beta_lookup){
-    int channel = threadIdx.x+blockIdx.x*blockDim.x;
-    int proj    = threadIdx.y+blockIdx.y*blockDim.y;
+    size_t channel = threadIdx.x+blockIdx.x*blockDim.x;
+    size_t proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
-    int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
-    int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
+    size_t n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
+    size_t out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
 
     float beta  = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
     
-    output[out_idx]=tex2D(tex_b,proj+0.5f,beta_idx+0.5f);     
+    output[out_idx]=tex2D(tex_b,proj+0.5f,beta_idx+0.5f);
 }
 
 
@@ -363,6 +363,7 @@ __global__ void reshape_out_force(float * output,float * input){
     size_t out_idx=k*d_cg.n_channels_oversampled*d_cg.n_rows+i*d_cg.n_channels_oversampled+j;
 
     output[out_idx]=input[in_idx];
+    //output[out_idx]=1.0f;
 }
 
 /* --- Filter kernel --- */

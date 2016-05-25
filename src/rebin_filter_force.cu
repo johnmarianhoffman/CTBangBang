@@ -209,7 +209,8 @@ void rebin_force_pffs(struct recon_metadata *mr){
     cudaMemcpyToSymbol(d_ri,&ri,sizeof(struct recon_info),0,cudaMemcpyHostToDevice);
     
     int proj_per_call=32;
-
+    //int proj_per_call=2;
+    
     // Need to split arrays by focal spot and reshape into "sheets"
     float * d_raw_1;
     float * d_raw_2;
@@ -315,7 +316,8 @@ void rebin_force_pffs(struct recon_metadata *mr){
 
     float * d_output;
     gpuErrchk(cudaMalloc(&d_output,cg.n_channels_oversampled*cg.n_rows*ri.n_proj_pull/ri.n_ffs*sizeof(float)));
-
+    cudaMemset(d_output,0,cg.n_channels_oversampled*cg.n_rows*ri.n_proj_pull/ri.n_ffs*sizeof(float));
+    
     // Ready our filter
     float * h_filter=(float*)calloc(2*cg.n_channels_oversampled,sizeof(float));
 
@@ -360,6 +362,7 @@ void rebin_force_pffs(struct recon_metadata *mr){
     cudaMalloc(&mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float));
     
     n_threads=128;
+    n_threads=2;
     size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
     dim3 threads_reshape_out(n_threads,1,1);
     dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);        
@@ -373,7 +376,7 @@ void rebin_force_pffs(struct recon_metadata *mr){
 	strcpy(fullpath,mr->rp.output_dir);
 	strcat(fullpath,"/rebin.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
-	fwrite(mr->ctd.rebin,sizeof(float),cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull-2*cg.add_projections_ffs)/mr->ri.n_ffs,outfile);
+	fwrite(mr->ctd.rebin,sizeof(float),      cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull-2*cg.add_projections_ffs)/mr->ri.n_ffs,outfile);
 	fclose(outfile);
     }
 

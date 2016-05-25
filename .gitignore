@@ -7,6 +7,8 @@ ctbangbang
 
 # Random files
 .recon_wfbp.sh
+*.ods
+noo_spie.scanner
 
 # Parameter files
 # Parameter file directory, except samples
