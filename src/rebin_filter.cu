@@ -917,9 +917,9 @@ void rebin_affs(struct recon_metadata *mr){
 }
 
 void rebin_dffs(struct recon_metadata *mr){
-    struct ct_geom cg=mr->cg;
-    struct recon_params rp=mr->rp;
-    struct recon_info ri=mr->ri;
+    //struct ct_geom cg=mr->cg;
+    //struct recon_params rp=mr->rp;
+    //struct recon_info ri=mr->ri;
 
     printf("This is currently unsupported! Sorry!\n");
     exit(0);
