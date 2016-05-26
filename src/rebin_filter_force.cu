@@ -121,7 +121,7 @@ void rebin_force_nffs(struct recon_metadata *mr){
     cudaMallocArray(&cu_raw_2,&channelDesc,cg.n_channels,mr->ri.n_proj_pull);
 
     // Kernel Dimensions
-    dim3 rebin_threads(32,32);
+    dim3 rebin_threads(16,16);
     dim3 rebin_blocks(cg.n_channels_oversampled/rebin_threads.x,mr->ri.n_proj_pull/rebin_threads.y);
 
     // Determine the number of threads needed based on the #define N_PIX (found in rebin_filter.cuh)
@@ -142,21 +142,38 @@ void rebin_force_nffs(struct recon_metadata *mr){
 	    }
 	}
     }
-	
+
+
+    // Calculate beta lookup information
+    float * d_beta_lookup;
+    gpuErrchk(cudaMalloc(&d_beta_lookup,cg.n_channels*sizeof(float)));
+
+    n_threads=cg.n_channels/2;
+    dim3 threads_beta_lookup(n_threads,1,1);
+    dim3 blocks_beta_lookup(cg.n_channels/n_threads,1,1);
+    beta_lookup_force<<<blocks_beta_lookup,threads_beta_lookup>>>(d_beta_lookup,0.0f,0.0f,0);
+
+    // debugging
+    float * h_beta_lookup;
+    h_beta_lookup=(float*)calloc(cg.n_channels,sizeof(float));
+    cudaMemcpy(h_beta_lookup,d_beta_lookup,cg.n_channels*sizeof(float),cudaMemcpyDeviceToHost);
+    float_debug(h_beta_lookup,cg.n_channels,"/home/john/Desktop/beta_lookup.bin");
+    // end debugging
+
     for (int i=0;i<cg.n_rows;i+=2){
 	// Copy first set of projections over to GPU	
 	cudaMemcpyToArrayAsync(cu_raw_1,0,0,&sheets[i*proj_array_size],proj_array_size*sizeof(float),cudaMemcpyHostToDevice,stream1);
 	cudaBindTextureToArray(tex_a,cu_raw_1,channelDesc);
 
 	// Launch Kernel A
-	n1_rebin_force<<<rebin_blocks,rebin_threads,0,stream1>>>(d_output,i);
+	n1_rebin_force<<<rebin_blocks,rebin_threads,0,stream1>>>(d_output,i,d_beta_lookup);
 	filter_force<<<filter_blocks,filter_threads,shared_size,stream1>>>(d_output,i);
 	    
 	//Begin the second transfer while 1st kernel executes
 	cudaMemcpyToArrayAsync(cu_raw_2,0,0,&sheets[(i+1)*proj_array_size],proj_array_size*sizeof(float),cudaMemcpyHostToDevice,stream2);
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
-	n2_rebin_force<<<rebin_blocks,rebin_threads,0,stream2>>>(d_output,i+1);
+	n2_rebin_force<<<rebin_blocks,rebin_threads,0,stream2>>>(d_output,i+1,d_beta_lookup);
 	filter_force<<<filter_blocks,filter_threads,shared_size,stream2>>>(d_output,i+1);
     }
 	
@@ -166,7 +183,7 @@ void rebin_force_nffs(struct recon_metadata *mr){
     //Reshape data into our mr structure
     cudaMalloc(&mr->ctd.d_rebin,cg.n_channels_oversampled*cg.n_rows*(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections)*sizeof(float));
 
-    n_threads=128;
+    n_threads=2;
     size_t n_proj_out=(mr->ri.n_proj_pull/mr->ri.n_ffs-2*cg.add_projections);
     dim3 threads_reshape_out(n_threads,1,1);
     dim3 blocks_reshape_out(n_proj_out/n_threads,cg.n_channels_oversampled,cg.n_rows);

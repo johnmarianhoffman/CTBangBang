@@ -23,6 +23,13 @@
 #define pi 3.1415926535897f
 #define N_PIX 2 // There may be a time in the future were this needs to be more flexible, but for right now, 2 works for all scanners
 
+// Force specific defines
+#define N_SUBFANS 46  // Number of subdetectors comprising full detector fan (in channel direction)
+#define N_SUBCHANNELS 20 // Number of channels per subdetector (in channel direction)
+#define GRID_SPACING 1.0284f // detector spacing on subdetectors in mm
+#define D_BETA_SUBFAN 2.0f*atan(((float)N_SUBCHANNELS/2.0f)*GRID_SPACING/(float)d_cg.src_to_det) // fan angle of subdetector in radians
+#define I_PRIME_CENTRAL (((float)N_SUBCHANNELS-1.0f)/2.0f-2.25f)
+
 texture<float,cudaTextureType2D,cudaReadModeElementType> tex_a;
 texture<float,cudaTextureType2D,cudaReadModeElementType> tex_b;
 texture<float,cudaTextureType2D,cudaReadModeElementType> tex_c;
@@ -64,35 +71,42 @@ __device__ inline float get_beta_idx(float beta,float * beta_lookup,int n_elemen
 }
 
 __global__ void beta_lookup_force(float * lookup,float dr, float da,int os_flag){
-    int channel=threadIdx.x+blockIdx.x*blockDim.x;   
-    lookup[channel]=beta_rk(da,dr,channel,os_flag);
+    size_t channel=threadIdx.x+blockIdx.x*blockDim.x;
+
+    size_t j=floorf((float)channel/(float)N_SUBCHANNELS);
+
+    int i_prime= channel-j*N_SUBCHANNELS;
+    
+    lookup[channel]=((float)j-((float)N_SUBFANS-1.0f)/2.0f)*D_BETA_SUBFAN+atan(((float)i_prime-(float)I_PRIME_CENTRAL)*GRID_SPACING/(d_cg.src_to_det));
 }
 
 /* --- No flying focal spot rebinning kernels --- */
-__global__ void n1_rebin_force(float * output,int row){
+__global__ void n1_rebin_force(float * output,int row,float * beta_lookup){
     int channel = threadIdx.x + blockDim.x*blockIdx.x;
     int proj    = threadIdx.y + blockDim.y*blockIdx.y;
     
     float beta=asin(((float)channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
-    float alpha_idx=(float)proj-beta*d_cg.n_proj_turn/(2.0f*pi);
-    float beta_idx=beta/d_cg.fan_angle_increment+d_cg.central_channel;
+    float alpha_idx=(float)proj-beta*(float)d_cg.n_proj_turn/(2.0f*pi);
+    //float beta_idx=beta/d_cg.fan_angle_increment+d_cg.central_channel;
+    float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels);
 
     int out_idx=d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
-    
+
     output[out_idx]=tex2D(tex_a,beta_idx+0.5f,alpha_idx+0.5f);
 }
 
-__global__ void n2_rebin_force(float * output,int row){
+__global__ void n2_rebin_force(float * output,int row,float * beta_lookup){
     int channel = threadIdx.x + blockDim.x*blockIdx.x;
     int proj    = threadIdx.y + blockDim.y*blockIdx.y;
 
     float beta=asin(((float)channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
-    float alpha_idx=(float)proj-beta*d_cg.n_proj_turn/(2*pi);
-    float beta_idx=beta/d_cg.fan_angle_increment+d_cg.central_channel;
+    float alpha_idx=(float)proj-beta*(float)d_cg.n_proj_turn/(2*pi);
+    //float beta_idx=beta/d_cg.fan_angle_increment+d_cg.central_channel;
+    float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels);    
 
     int out_idx=d_cg.n_channels_oversampled*(d_ri.n_proj_pull/d_ri.n_ffs)*row+(d_ri.n_proj_pull/d_ri.n_ffs)*channel+proj;
-    
-    output[out_idx]=tex2D(tex_b,beta_idx+0.5f,alpha_idx+0.5f);
+
+    output[out_idx]=tex2D(tex_a,beta_idx+0.5f,alpha_idx+0.5f);
 }
 
 /* --- Phi only flying focal spot rebinning kernels ---*/
