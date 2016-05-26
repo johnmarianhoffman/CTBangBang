@@ -63,13 +63,13 @@ __device__ inline float get_beta_idx(float beta,float * beta_lookup,int n_elemen
     return (float)idx_low-1.0f+(beta-beta_lookup[idx_low-1])/(beta_lookup[idx_low]-beta_lookup[idx_low-1]);
 }
 
-__global__ void beta_lookup(float * lookup,float dr, float da,int os_flag){
+__global__ void beta_lookup_force(float * lookup,float dr, float da,int os_flag){
     int channel=threadIdx.x+blockIdx.x*blockDim.x;   
     lookup[channel]=beta_rk(da,dr,channel,os_flag);
 }
 
 /* --- No flying focal spot rebinning kernels --- */
-__global__ void n1_rebin(float * output,int row){
+__global__ void n1_rebin_force(float * output,int row){
     int channel = threadIdx.x + blockDim.x*blockIdx.x;
     int proj    = threadIdx.y + blockDim.y*blockIdx.y;
     
@@ -82,7 +82,7 @@ __global__ void n1_rebin(float * output,int row){
     output[out_idx]=tex2D(tex_a,beta_idx+0.5f,alpha_idx+0.5f);
 }
 
-__global__ void n2_rebin(float * output,int row){
+__global__ void n2_rebin_force(float * output,int row){
     int channel = threadIdx.x + blockDim.x*blockIdx.x;
     int proj    = threadIdx.y + blockDim.y*blockIdx.y;
 
@@ -96,7 +96,7 @@ __global__ void n2_rebin(float * output,int row){
 }
 
 /* --- Phi only flying focal spot rebinning kernels ---*/
-__global__ void p_reshape(float * raw, float * out,int offset){
+__global__ void p_reshape_force(float * raw, float * out,int offset){
     int channel=blockIdx.x*blockDim.x+threadIdx.x;
     int row=blockIdx.y*blockDim.y+threadIdx.y;
     int proj=blockIdx.z;
@@ -108,7 +108,7 @@ __global__ void p_reshape(float * raw, float * out,int offset){
     out[idx_out_offset]=raw[d_cg.n_channels*d_cg.n_rows_raw*(2*proj+1)+d_cg.n_channels*row+channel];
 }
 
-__global__ void p1_rebin_t(float * output,float da,int row,float * beta_lookup){
+__global__ void p1_rebin_t_force(float * output,float da,int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -125,7 +125,7 @@ __global__ void p1_rebin_t(float * output,float da,int row,float * beta_lookup){
     output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void p2_rebin_t(float * output,float da,int row,float * beta_lookup){
+__global__ void p2_rebin_t_force(float * output,float da,int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -142,35 +142,35 @@ __global__ void p2_rebin_t(float * output,float da,int row,float * beta_lookup){
     output[out_idx]=tex2D(tex_b,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void p1_rebin(float* output,float da,int row,float * beta_lookup){
-    int channel = threadIdx.x+blockIdx.x*blockDim.x;
-    int proj    = threadIdx.y+blockIdx.y*blockDim.y;
+__global__ void p1_rebin_force(float* output,float da,int row,float * beta_lookup){
+    size_t channel = threadIdx.x+blockIdx.x*blockDim.x;
+    size_t proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
-    int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
-    int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
+    size_t n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
+    size_t out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
 
     float beta  = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
     
-    output[out_idx]=tex2D(tex_a,proj+0.5f,beta_idx+0.5f); 
+    output[out_idx]=tex2D(tex_a,proj+0.5f,beta_idx+0.5f);
 }
 
-__global__ void p2_rebin(float* output,float da,int row,float * beta_lookup){
-    int channel = threadIdx.x+blockIdx.x*blockDim.x;
-    int proj    = threadIdx.y+blockIdx.y*blockDim.y;
+__global__ void p2_rebin_force(float* output,float da,int row,float * beta_lookup){
+    size_t channel = threadIdx.x+blockIdx.x*blockDim.x;
+    size_t proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
-    int n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
-    int out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
+    size_t n_proj  = d_ri.n_proj_pull/d_ri.n_ffs;
+    size_t out_idx = d_cg.n_channels_oversampled*n_proj*row+n_proj*channel+proj;
 
     float beta  = asin((channel-2*d_cg.central_channel)*(d_cg.fan_angle_increment/2));
     float beta_idx=get_beta_idx(beta,beta_lookup,d_cg.n_channels_oversampled);
     
-    output[out_idx]=tex2D(tex_b,proj+0.5f,beta_idx+0.5f);     
+    output[out_idx]=tex2D(tex_b,proj+0.5f,beta_idx+0.5f);
 }
 
 
 /* --- Z only flying focal spot rebinning kernels ---*/
-__global__ void z_reshape(float * raw, float * out,int offset){
+__global__ void z_reshape_force(float * raw, float * out,int offset){
     int channel=blockIdx.x*blockDim.x+threadIdx.x;
     int row=blockIdx.y*blockDim.y+threadIdx.y;
     int proj=blockIdx.z;
@@ -183,7 +183,7 @@ __global__ void z_reshape(float * raw, float * out,int offset){
 }
 
 
-__global__ void z1_rebin(float * output,float * beta_lookup,float dr,int row){
+__global__ void z1_rebin_force(float * output,float * beta_lookup,float dr,int row){
     // This kernel handles all projections coming from focal spot 1
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
@@ -205,7 +205,7 @@ __global__ void z1_rebin(float * output,float * beta_lookup,float dr,int row){
     output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,beta_idx+0.5f);
 }
 
-__global__ void z2_rebin(float * output,float * beta_lookup,float dr,int row){
+__global__ void z2_rebin_force(float * output,float * beta_lookup,float dr,int row){
     // This kernel handles all projections coming from focal spot 2
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
@@ -228,7 +228,7 @@ __global__ void z2_rebin(float * output,float * beta_lookup,float dr,int row){
 }
 
 /* --- Z and Phi flying focal spot rebinning kernels ---*/
-__global__ void a_reshape(float * raw, float * out,int offset){
+__global__ void a_reshape_force(float * raw, float * out,int offset){
     int channel=blockIdx.x*blockDim.x+threadIdx.x;
     int row=blockIdx.y*blockDim.y+threadIdx.y;
     int proj=blockIdx.z;
@@ -244,7 +244,7 @@ __global__ void a_reshape(float * raw, float * out,int offset){
     out[idx_out_4]=raw[d_cg.n_channels*d_cg.n_rows_raw*(4*proj+3)+d_cg.n_channels*row+channel];
 }
 
-__global__ void a1_rebin_t(float * output,float da, float dr, int row,float * beta_lookup){
+__global__ void a1_rebin_t_force(float * output,float da, float dr, int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -260,7 +260,7 @@ __global__ void a1_rebin_t(float * output,float da, float dr, int row,float * be
     output[out_idx]=tex2D(tex_a,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void a2_rebin_t(float * output,float da, float dr, int row,float * beta_lookup){
+__global__ void a2_rebin_t_force(float * output,float da, float dr, int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -276,7 +276,7 @@ __global__ void a2_rebin_t(float * output,float da, float dr, int row,float * be
     output[out_idx]=tex2D(tex_b,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void a3_rebin_t(float * output,float da, float dr, int row,float * beta_lookup){
+__global__ void a3_rebin_t_force(float * output,float da, float dr, int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -292,7 +292,7 @@ __global__ void a3_rebin_t(float * output,float da, float dr, int row,float * be
     output[out_idx]=tex2D(tex_c,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void a4_rebin_t(float * output,float da, float dr, int row,float * beta_lookup){
+__global__ void a4_rebin_t_force(float * output,float da, float dr, int row,float * beta_lookup){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -308,7 +308,7 @@ __global__ void a4_rebin_t(float * output,float da, float dr, int row,float * be
     output[out_idx]=tex2D(tex_d,alpha_idx+0.5f,channel+0.5f);
 }
 
-__global__ void a1_rebin_b(float * output,float * beta_lookup,float dr,int row){
+__global__ void a1_rebin_b_force(float * output,float * beta_lookup,float dr,int row){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -329,7 +329,7 @@ __global__ void a1_rebin_b(float * output,float * beta_lookup,float dr,int row){
     output[out_idx]=tex2D(tex_a,proj+0.5f,beta_idx+0.5f);
 }
 
-__global__ void a2_rebin_b(float * output,float * beta_lookup,float dr,int row){
+__global__ void a2_rebin_b_force(float * output,float * beta_lookup,float dr,int row){
     int channel = threadIdx.x+blockIdx.x*blockDim.x;
     int proj    = threadIdx.y+blockIdx.y*blockDim.y;
 
@@ -351,25 +351,23 @@ __global__ void a2_rebin_b(float * output,float * beta_lookup,float dr,int row){
 
 /* --- Reshape out kernel ---*/
 // Reshapes row-sheet rebinned array into projection-sheet array
-__global__ void reshape_out(float * output,float * input){
+__global__ void reshape_out_force(float * output,float * input){
 
-    unsigned long long offset=d_cg.add_projections;
+    size_t offset=d_cg.add_projections;
 
-    unsigned long long k = threadIdx.x+blockIdx.x*blockDim.x;// proj
-    unsigned long long j = threadIdx.y+blockIdx.y*blockDim.y;// channels
-    unsigned long long i = threadIdx.z+blockIdx.z*blockDim.z;// rows
+    size_t k = threadIdx.x+blockIdx.x*blockDim.x;//j channel
+    size_t j = threadIdx.y+blockIdx.y*blockDim.y;//k proj 
+    size_t i = threadIdx.z+blockIdx.z*blockDim.z;//i row
 
-    unsigned long long in_idx=((unsigned long long)d_cg.n_channels_oversampled*(unsigned long long)d_ri.n_proj_pull/(unsigned long long)d_ri.n_ffs)*i+(unsigned long long)d_ri.n_proj_pull/(unsigned long long)d_ri.n_ffs*j+(k+offset);
-    unsigned long long out_idx=k*(unsigned long long)d_cg.n_channels_oversampled*(unsigned long long)d_cg.n_rows+i*(unsigned long long)d_cg.n_channels_oversampled+j;
-    
+    size_t in_idx=(d_cg.n_channels_oversampled*d_ri.n_proj_pull/d_ri.n_ffs)*i+d_ri.n_proj_pull/d_ri.n_ffs*j+(k+offset);
+    size_t out_idx=k*d_cg.n_channels_oversampled*d_cg.n_rows+i*d_cg.n_channels_oversampled+j;
+
     output[out_idx]=input[in_idx];
-
-    //output[out_idx]=1.0f;//input[in_idx];
-    //output[out_idx]=out_idx;
+    //output[out_idx]=1.0f;
 }
 
 /* --- Filter kernel --- */
-__global__ void filter(float * output, int row){
+__global__ void filter_force(float * output, int row){
 
     extern __shared__ float s[];
     float * s_row=s;

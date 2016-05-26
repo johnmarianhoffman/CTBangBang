@@ -76,7 +76,7 @@ int backproject_cpu(struct recon_metadata * mr){
     // For WFBP, outer loop is over angles in a half turn
     for (int i=0;i<cg.n_proj_turn/2;i+=I){
 
-	printf("Backprojection projection set %d/%d...\n",i,cg.n_proj_turn/2);
+	printf("Backprojection projection set %d/%lu...\n",i,cg.n_proj_turn/2);
 	
 	//Fetch n_half_turns projections for current projection angle
 	for (int kk=0;kk<n_half_turns;kk++){

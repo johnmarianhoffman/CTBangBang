@@ -104,8 +104,8 @@ __global__ void smooth_sup(float * sup_raw,float * sup_smooth){
 	    raw_idx=0;
 	else if (raw_idx>max_idx)
 	    raw_idx=max_idx;
-	
-	running_avg+=(1.0f/(float)n_avg)*sup_raw[proj_idx-offset+i];
+
+	running_avg+=(1.0f/(float)n_avg)*sup_raw[raw_idx];
     }
     
     sup_smooth[proj_idx]=running_avg;

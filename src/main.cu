@@ -33,6 +33,7 @@
 #include <setup.h>
 #include <preprocessing.h>
 #include <rebin_filter.h>
+#include <rebin_filter_force.h>
 #include <rebin_filter_cpu.h>
 #include <backproject.h>
 #include <backproject_cpu.h>
@@ -40,7 +41,7 @@
 #include <finalize_image_stack_cpu.h>
 
 void log(int verbosity, const char *string, ...);
-void split_path_file(char**p, char**f, char *pf);
+void empty_prm(const char * filepath);
 
 void usage(){
     printf("\n");
@@ -56,7 +57,6 @@ void usage(){
     printf("Copyright John Hoffman 2015\n\n");
     exit(0);
 }
-
 
 int main(int argc, char ** argv){
 
@@ -75,6 +75,7 @@ int main(int argc, char ** argv){
     }
     
     for (int i=1;i<(argc-1);i++){
+
 	if (strcmp(argv[i],"-t")==0){
 	    mr.flags.testing=1;
 	}
@@ -94,6 +95,9 @@ int main(int argc, char ** argv){
 	else if (strcmp(argv[i],"--benchmark")==0){
 	    mr.flags.benchmark=1;
 	}
+	else if (strcmp(argv[i],"--empty-prm")==0){
+	    empty_prm(argv[argc-1]);
+	}
 	else{
 	    usage();
 	}
@@ -105,20 +109,7 @@ int main(int argc, char ** argv){
 
     log(mr.flags.verbose,"CHECKING INPUT PARAMETERS AND CONFIGURING RECONSTRUCTION\n"
 	"\n");
-    
-    /* --- Get working directory and User's home directory --- */
-    struct passwd *pw=getpwuid(getuid());
-    
-    const char * homedir=pw->pw_dir;
-    strcpy(mr.homedir,homedir);
-    char full_exe_path[4096]={0};
-    char * exe_path=(char*)calloc(4096,sizeof(char));
-    char * exe_name=(char*)calloc(255,sizeof(char));
-    readlink("/proc/self/exe",full_exe_path,4096);
-    split_path_file(&exe_path,&exe_name,full_exe_path);
-    strcpy(mr.install_dir,exe_path);
-    mr.install_dir[strlen(mr.install_dir)-1]=0;
-    
+
     /* --- Step 0: configure our processor (CPU or GPU) */
     // We want to send to the GPU furthest back in the list which is
     // unlikely to have a display connected.  We also check for the
@@ -167,12 +158,28 @@ int main(int argc, char ** argv){
     mr.rp=configure_recon_params(argv[argc-1]);
 
     /* --- Check for defined output directory, set to desktop if empty --- */
-    strcpy(mr.output_dir,mr.rp.output_dir);
-    if (strcmp(mr.output_dir,"")==0){
-	char fullpath[4096+255];
-	strcpy(fullpath,mr.homedir);
-	strcat(fullpath,"/Desktop/");
-	strcpy(mr.output_dir,fullpath);
+    /* Configure various file paths and test that we can write out */
+    int ctbb_err=configure_paths(&mr);
+    log(mr.flags.verbose,"\n");
+    log(mr.flags.verbose,"Raw data file:              %s/%s\n",mr.rp.raw_data_dir,mr.rp.raw_data_file);
+    log(mr.flags.verbose,"Output file:                %s/%s\n",mr.rp.output_dir,mr.rp.output_file);
+    log(mr.flags.verbose,"Testing files written to:   %s/\n",mr.rp.output_dir);
+    log(mr.flags.verbose,"Current working directory:  %s/\n",mr.cwd);
+    log(mr.flags.verbose,"CTBB exe directory:         %s/\n",mr.install_dir);
+    log(mr.flags.verbose,"\n");
+
+    if (ctbb_err){
+	switch (ctbb_err){
+	case 1:{
+	    perror("Cannot read specified raw file.  Ensure the path is correct and you have permission to read the file");
+	    break;
+	}
+	case 2:{
+	    perror("Cannot write to specified output file/directory.  Ensure the path is correct and you have permission to write to the directory");
+	    break;
+	}	    
+	}
+	exit(13);
     }
     
     // Step 2a: Setup scanner geometry
@@ -203,7 +210,7 @@ int main(int argc, char ** argv){
 
 	TIME_EXEC(adaptive_filter_kk(&mr),mr.flags.timing,"adaptive_filtration");
 
-	/* --- Step 4 handled by functions in rebin_filter.cu --- */
+	/* --- Step 4 handled by functions in rebin_filter.cu and rebin_filter_force.cu--- */
 	// Step 4: Rebin and filter
 	log(mr.flags.verbose,"Rebinning and filtering data...\n");
 
@@ -211,7 +218,12 @@ int main(int argc, char ** argv){
 	    TIME_EXEC(rebin_filter_cpu(&mr),mr.flags.timing,"rebinning and filtering");
 	}
 	else{
-	    TIME_EXEC(rebin_filter(&mr),mr.flags.timing,"rebinning and filtering");
+	    if (mr.flags.siemens_force){
+		TIME_EXEC(rebin_filter_force(&mr),mr.flags.timing,"rebinning and filtering");
+	    }
+	    else{
+		TIME_EXEC(rebin_filter(&mr),mr.flags.timing,"rebinning and filtering");
+	    }
 	}
 
 	/* --- Step 5 handled by functions in backproject.cu ---*/
@@ -239,7 +251,7 @@ int main(int argc, char ** argv){
 
     // Step 7: Save image data to disk (found in setup.cu)
     log(mr.flags.verbose,"----------------------------\n\n");
-    log(mr.flags.verbose,"Writing image data to %s%s.img\n",mr.output_dir,mr.rp.raw_data_file);
+    log(mr.flags.verbose,"Writing image data to %s/%s\n",mr.rp.output_dir,mr.rp.output_file);
     finish_and_cleanup(&mr);
 
     TIMER_MASTER_END();
@@ -262,10 +274,54 @@ void log(int verbosity, const char *string,...){
     } 
 }
 
-void split_path_file(char**p, char**f, char *pf) {
-    char *slash = pf, *next;
-    while ((next = strpbrk(slash + 1, "\\/"))) slash = next;
-    if (pf != slash) slash++;
-    *p = strndup(pf, slash - pf);
-    *f = strdup(slash);
+void empty_prm(const char * filepath){
+    char fullpath[4096+255]={0};
+    strcpy(fullpath,filepath);
+    //getcwd(fullpath,4096+255);
+    //strcat(fullpath,"/empty_prm.prm");
+
+    FILE * fid=fopen(fullpath,"w");
+
+    fprintf(fid,
+	    "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+	    "%%  This is an empty prm file for       %%\n"
+	    "%%  the CT reconstruction software      %%\n"
+	    "%%  CTBangBang.                         %%\n"
+	    "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"	    
+	    ""
+	    "\n"
+	    " %% Fields are TAB delimited %% "
+	    "\n"
+	    "RawDataDir:\n"
+	    "RawDataFile:\n"
+	    "OutputDir:\n"
+	    "OutputFile:\n"
+	    "Nrows:\n"
+	    "CollSlicewidth:\n"
+	    "StartPos:\n"
+	    "EndPos:\n"
+	    "TableFeed:\n"
+	    "SliceThickness:\n"
+	    "AcqFOV:\n"
+	    "ReconFOV:\n"
+	    "ReconKernel:\n"
+	    "Readings:\n"
+	    "Xorigin:\n"
+	    "Yorigin:\n"
+	    "Zffs:\n"
+	    "Phiffs:\n"
+	    "Scanner:\n"
+	    "FileType:\n"
+	    "FileSubType:\n"
+	    "RawOffset:\n"
+	    "Nx:\n"
+	    "Ny:\n"
+	    "TubeStartAngle:\n"
+	    "TubeStartAngle:\n"
+	    "AdaptiveFiltration:\n"
+	    "NSlices:\n"
+	    "TableDir:\n");
+	    
+    fclose(fid);
+    exit(0);
 }
