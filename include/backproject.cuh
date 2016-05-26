@@ -22,7 +22,7 @@
 
 #define pi 3.1415368979f
 #define K 1
-#define I 16
+#define I 1
 
 texture<float,cudaTextureType2D,cudaReadModeElementType> tex_a;
 texture<float,cudaTextureType2D,cudaReadModeElementType> tex_b;
@@ -64,7 +64,7 @@ __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_tur
     float y=(d_rp.recon_fov/d_rp.ny)*((float)yi-(d_rp.ny-1)/2.0f)+d_rp.y_origin;
     float z=zi*d_rp.coll_slicewidth+d_cg.z_rot/2.0f+d_cg.z_rot*tube_start/(2.0f*pi);
     
-    for (int i=0;i<I;i++){	
+    for (int i=0;i<I;i++){
 
 	for (int ii=0;ii<K;ii++){ // zero out our holder arrays
 	    s_t[ii]=0.0f;
