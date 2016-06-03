@@ -279,7 +279,7 @@ struct recon_params configure_recon_params(char * filename){
 	exit_flag=1;
     }
     if (prms.slice_thickness==0){
-	printf("CollSlicewidth was not properly set in configuration.  Check parameter file.\n");
+	printf("SliceThickness was not properly set in configuration.  Check parameter file.\n");
 	exit_flag=1;
     }
     if (prms.pitch_value==0){
