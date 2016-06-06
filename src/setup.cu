@@ -760,8 +760,8 @@ void update_block_info(recon_metadata *mr){
     if (recon_direction!=1&&recon_direction!=-1) // user requests one slice (end_pos==start_pos)
 	recon_direction=1;
     
-    float block_slice_start=ri.recon_start_pos+recon_direction*ri.cb.block_idx*rp.coll_slicewidth*ri.n_slices_block;
-    float block_slice_end=block_slice_start+recon_direction*(ri.n_slices_block-1)*rp.coll_slicewidth;
+    float block_slice_start=ri.recon_start_pos+recon_direction*ri.cb.block_idx*rp.coll_slicewidth*(float)ri.n_slices_block;
+    float block_slice_end=block_slice_start+(float)recon_direction*((float)ri.n_slices_block-1.0f)*rp.coll_slicewidth;
     int array_direction=fabs(mr->table_positions[100]-mr->table_positions[0])/(mr->table_positions[100]-mr->table_positions[0]);
     int idx_block_slice_start=array_search(block_slice_start,mr->table_positions,rp.n_readings,array_direction);
     int idx_block_slice_end=array_search(block_slice_end,mr->table_positions,rp.n_readings,array_direction);
