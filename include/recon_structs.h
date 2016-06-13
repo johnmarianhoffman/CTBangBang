@@ -21,36 +21,7 @@
 #ifndef recon_structs_h
 #define recon_structs_h
 
-struct recon_params{
-    char  raw_data_dir[4096];
-    char  raw_data_file[255];
-    char  output_dir[4096];
-    char  output_file[255];
-    int n_rows;
-    float coll_slicewidth;
-    float start_pos;
-    float end_pos;
-    int n_slices;  // overrides end_pos to give user a requested number of slices
-    float slice_thickness;
-    float tube_start_angle;
-    float pitch_value;
-    float acq_fov;
-    float recon_fov;
-    int recon_kernel;
-    float x_origin;
-    float y_origin;
-    int n_readings;
-    int z_ffs;
-    int phi_ffs;
-    char scanner[4096+255];
-    int file_type;
-    int file_subtype;
-    int raw_data_offset;
-    int table_dir;
-    float adaptive_filtration_s;
-    unsigned int nx;
-    unsigned int ny;
-};
+#include <parse_config.h>
 
 struct block_info{
     int block_idx;

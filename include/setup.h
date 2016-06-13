@@ -19,10 +19,10 @@
 /* jmhoffman@mednet.ucla.edu with "CTBANGBANG" in the subject line*/
 
 // Non-GPU functions and data types to configure recontructions 
-#include <recon_structs.h>
-
 #ifndef setup_h
 #define setup_h
+
+#include <recon_structs.h>
 
 // Step 1-3 functions
 int configure_paths(struct recon_metadata *mr);
