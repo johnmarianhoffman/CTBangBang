@@ -27,6 +27,7 @@
 #include <pwd.h>
 
 #include <setup.h>
+#include <parse_config.h>
 #include <ctbb/ctbb_read.h>
 
 #define pi 3.1415926535897f
@@ -107,165 +108,22 @@ int configure_paths(struct recon_metadata *mr){
 struct recon_params configure_recon_params(char * filename){
     struct recon_params prms;
     memset(&prms, 0,sizeof(prms));
-    
-    char * prm_buffer;
-    char *token;
 
-    FILE * prm_file;
-    prm_file=fopen(filename,"r");
-    if (prm_file==NULL){
-	perror("Parameter file not found.");
-	exit(1);
+    parse_config(filename,&prms);
+
+    // Convert our table_dir_str to our table_dir integer
+    if (strcmp(prms.table_dir_str,"")!=0){
+	if (strcmp(prms.table_dir_str,"out")==0){
+	    prms.table_dir=1;
+	}
+	else if (strcmp(prms.table_dir_str,"in")==0){
+	    prms.table_dir=-1;
+	}
+	else{
+	    printf("WARNING: TableDir parameter must be 'in' or 'out' (no quotes).  Defaulting to 'out'.\n");
+	    prms.table_dir=1;
+	}
     }
-
-    fseek(prm_file, 0, SEEK_END);
-    size_t prm_size = ftell(prm_file);
-    rewind(prm_file);
-    prm_buffer = (char*)malloc(prm_size + 1);
-    prm_buffer[prm_size] = '\0';
-    fread(prm_buffer, sizeof(char), prm_size, prm_file);
-    fclose(prm_file);
-
-    token=strtok(prm_buffer," \t\n%");
-
-    //Parse parameter file
-    while (token!=NULL){
-
-	if (strcmp(token,"RawDataDir:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%s",prms.raw_data_dir);
-	}
-	else if (strcmp(token,"RawDataFile:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%s",prms.raw_data_file);
-	}
-	else if (strcmp(token,"OutputDir:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%s",prms.output_dir);
-	}
-	else if (strcmp(token,"OutputFile:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%s",prms.output_file);
-	}	
-	else if (strcmp(token,"Nrows:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%i",&prms.n_rows);
-	}
-	else if (strcmp(token,"CollSlicewidth:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.coll_slicewidth);
-	}
-	else if (strcmp(token,"StartPos:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.start_pos);
-	}
-	else if (strcmp(token,"EndPos:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.end_pos);
-	}
-	else if ((strcmp(token,"PitchValue:")==0)||(strcmp(token,"TableFeed:")==0)){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.pitch_value);
-	}
-	else if (strcmp(token,"SliceThickness:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.slice_thickness);
-	}
-	else if (strcmp(token,"AcqFOV:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.acq_fov);
-	}
-	else if (strcmp(token,"ReconFOV:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.recon_fov);
-	}
-	else if (strcmp(token,"ReconKernel:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%d",&prms.recon_kernel);
-	}
-	else if (strcmp(token,"Readings:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%d",&prms.n_readings); 
-	} 
-	else if (strcmp(token,"Xorigin:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%f",&prms.x_origin); 
-	} 
-	else if (strcmp(token,"Yorigin:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%f",&prms.y_origin); 
-	} 
-	else if (strcmp(token,"Zffs:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%i",&prms.z_ffs); 
-	} 
-	else if (strcmp(token,"Phiffs:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%i",&prms.phi_ffs); 
-	} 
-	else if (strcmp(token,"Scanner:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%s",prms.scanner); 
-	} 
-	else if (strcmp(token,"FileType:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%i",&prms.file_type); 
-	}
-	else if (strcmp(token,"FileSubType:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%i",&prms.file_subtype); 
-	} 
-	else if (strcmp(token,"RawOffset:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%i",&prms.raw_data_offset); 
-	} 
-	else if (strcmp(token,"Nx:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%i",&prms.nx); 
-	} 
-	else if (strcmp(token,"Ny:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%i",&prms.ny); 
-	}
-	else if (strcmp(token,"TubeStartAngle:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%f",&prms.tube_start_angle); 
-	}
-	else if (strcmp(token,"TubeStartAngle:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%f",&prms.tube_start_angle); 
-	}
-	else if (strcmp(token,"AdaptiveFiltration:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%f",&prms.adaptive_filtration_s); 
-	}
-	else if (strcmp(token,"NSlices:")==0){ 
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%i",&prms.n_slices); 
-	}
-
-	else if (strcmp(token,"TableDir:")==0){
-	    // Note, this parameter is ignored if not using a binary file
-	    char tmp[4096]={0};
-	    token=strtok(NULL," \t\n%"); 
-	    sscanf(token,"%s",tmp);
-	    if (strcmp(tmp,"out")==0){
-		prms.table_dir=1;
-	    }
-	    else if (strcmp(tmp,"in")==0){
-		prms.table_dir=-1;
-	    }
-	    else{
-		printf("WARNING: TableDir parameter must be 'in' or 'out' (no quotes).  Defaulting to 'out'.\n");
-		prms.table_dir=1;
-	    }
-	} 
-	else { 
-	    //token=strtok(NULL," \t\n%"); 
-	} 
-
-	token=strtok(NULL," \t\n%"); 
-    } 
 
     // Perform some sanity checks to make sure that we have read in the "essentials"
     // Bail if critical values are zero
@@ -314,7 +172,6 @@ struct recon_params configure_recon_params(char * filename){
 	exit(1);
     }
     
-    free(prm_buffer); 
     return prms; 
 } 
 
@@ -328,6 +185,7 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
     char * token;
 
     cg.table_direction=rp.table_dir;
+					
 
     char path[4096+255];
     int scanner=-1;
