@@ -539,16 +539,12 @@ void rebin_zffs(struct recon_metadata *mr){
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
 	z1_rebin<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);
-	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,2*i);
-	gpuErrchk( cudaPeekAtLastError() );
-	gpuErrchk( cudaDeviceSynchronize() );
-
-	
 	z2_rebin<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
-	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
-	gpuErrchk( cudaPeekAtLastError() );
-	gpuErrchk( cudaDeviceSynchronize() );
 
+	cudaDeviceSynchronize();
+
+	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,2*i);
+	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
     }
 
     //Reshape into array ready for backprojection
@@ -867,10 +863,12 @@ void rebin_affs(struct recon_metadata *mr){
 	cudaMemcpyToArrayAsync(cu_raw_2,0,0,&d_rebin_t2[cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs*i],cg.n_channels_oversampled*ri.n_proj_pull/ri.n_ffs*sizeof(float),cudaMemcpyDeviceToDevice,stream2);
 	cudaBindTextureToArray(tex_b,cu_raw_2,channelDesc);
 
-	a1_rebin_b<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);
-	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,2*i);
-	
+	a1_rebin_b<<<blocks_rebin,threads_rebin,0,stream1>>>(d_output,d_beta_lookup_1,dr,i);	
 	a2_rebin_b<<<blocks_rebin,threads_rebin,0,stream2>>>(d_output,d_beta_lookup_2,dr,i);
+
+	cudaDeviceSynchronize();
+	
+	filter<<<blocks_filter,threads_filter,shared_size,stream1>>>(d_output,2*i);
 	filter<<<blocks_filter,threads_filter,shared_size,stream2>>>(d_output,2*i+1);
     }
 
