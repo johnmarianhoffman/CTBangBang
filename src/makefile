@@ -39,7 +39,7 @@ obj/rebin_filter.o: rebin_filter.cu $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)reb
 obj/rebin_filter_cpu.o: rebin_filter_cpu.cu $(IDIR_RECON)rebin_filter_cpu.h 
 	$(NVCC) $(CFLAGS) -c -o $@ $<
 
-obj/backproject.o: backproject.cu $(IDIR_RECON)backproject.cuh
+obj/backproject.o: backproject.cu $(IDIR_RECON)backproject.cuh $(IDIR_RECON)backproject_v2.cuh
 	$(NVCC) $(CFLAGS) -c -o $@ $<
 
 obj/backproject_cpu.o: backproject_cpu.cu $(IDIR_RECON)backproject_cpu.h

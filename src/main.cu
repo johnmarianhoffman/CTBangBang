@@ -226,7 +226,8 @@ int main(int argc, char ** argv){
 	    TIME_EXEC(backproject_cpu(&mr),mr.flags.timing,"backprojection");
 	}
 	else{
-	    TIME_EXEC(backproject(&mr),mr.flags.timing,"backprojections");;
+	    //TIME_EXEC(backproject(&mr),mr.flags.timing,"backprojections");
+            TIME_EXEC(backproject_v2(&mr),mr.flags.timing,"backprojections");
 	}
     }
 

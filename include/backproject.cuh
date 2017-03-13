@@ -19,32 +19,11 @@
 /* jmhoffman@mednet.ucla.edu with "CTBANGBANG" in the subject line*/
 
 #include <recon_structs.h>
+#include <backproject_meta.h>
 
-#define pi 3.1415368979f
-#define K 1
-#define I 16
-
-texture<float,cudaTextureType2D,cudaReadModeElementType> tex_a;
-texture<float,cudaTextureType2D,cudaReadModeElementType> tex_b;
-
-__constant__ struct ct_geom d_cg;
-__constant__ struct recon_params d_rp;
-
-__device__ inline float W(float q){
-    float out;
-    float Q=0.6f;
-    if (fabsf(q)<Q){
-	out=1.0f;
-    }
-    else if ((fabsf(q)>=Q)&&(fabsf(q)<1.0f)){
-	out=powf(cosf((pi/2.0f)*(fabsf(q)-Q)/(1.0f-Q)),2.0f);
-    }
-    else {
-	out=0.0f;
-    }
-    return out;
-}
-
+//texture<float,cudaTextureType2D,cudaReadModeElementType> tex_a;
+//texture<float,cudaTextureType2D,cudaReadModeElementType> tex_b;
+ 
 __global__ void bp_a(float * output,int proj_idx,float tube_start,int n_half_turns){
     //Initialize sum voxels and weight voxels
     float s[K]={0};
