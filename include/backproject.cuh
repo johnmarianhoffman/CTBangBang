@@ -22,7 +22,7 @@
 
 #define pi 3.1415368979f
 #define K 1
-#define I 16
+#define I 1
 
 texture<float,cudaTextureType2D,cudaReadModeElementType> tex_a;
 texture<float,cudaTextureType2D,cudaReadModeElementType> tex_b;
