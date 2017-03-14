@@ -64,6 +64,9 @@ int adaptive_filter_kk(struct recon_metadata * mr){
     dim3 extract_sup_blocks(ri.n_proj_pull/128,1,1);
 
     extract_sup<<<extract_sup_blocks,extract_sup_threads>>>(d_raw,d_sup);
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
+
 
     //cudaMemcpy(h_sup,d_sup,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
     //float_debug(h_sup,ri.n_proj_pull,"/home/john/Desktop/h_sup.txt");
@@ -77,6 +80,8 @@ int adaptive_filter_kk(struct recon_metadata * mr){
     dim3 smooth_sup_blocks(ri.n_proj_pull/128,1,1);
 
     smooth_sup<<<extract_sup_blocks,extract_sup_threads>>>(d_sup,d_sup_smooth);
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
 
     //cudaMemcpy(h_sup_smooth,d_sup_smooth,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
     //float_debug(h_sup_smooth,ri.n_proj_pull,"/home/john/Desktop/h_sup_smooth.txt");
@@ -95,6 +100,9 @@ int adaptive_filter_kk(struct recon_metadata * mr){
     dim3 ecc_blocks(ri.n_proj_pull/128,1,1);
 
     eccentricity<<<ecc_blocks,ecc_threads>>>(d_sup_smooth,d_ecc,d_p_max,d_p_min);
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
+
 
     //cudaMemcpy(h_ecc,d_ecc,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
     //float_debug(h_ecc,ri.n_proj_pull,"/home/john/Desktop/h_ecc_trunc.txt");
@@ -108,6 +116,9 @@ int adaptive_filter_kk(struct recon_metadata * mr){
     dim3 threshold_blocks(ri.n_proj_pull/128,1,1);
     
     find_thresholds<<<threshold_blocks,threshold_threads>>>(mr->rp.adaptive_filtration_s,d_ecc,d_sup_smooth,d_p_max,d_p_min,d_threshold);
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
+
     
     //cudaMemcpy(h_threshold,d_threshold,ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
     //float_debug(h_threshold,ri.n_proj_pull,"/home/john/Desktop/h_threshold.txt");
@@ -120,6 +131,8 @@ int adaptive_filter_kk(struct recon_metadata * mr){
     dim3 filter_blocks(ri.n_proj_pull/128,1,1);
     
     filter_projections<<<filter_blocks,filter_threads>>>(d_raw,d_threshold,d_filtered_raw);
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
 
     // Copy filtered raw data back into raw ct data array
     cudaMemcpy(mr->ctd.raw,d_filtered_raw,cg.n_channels*cg.n_rows_raw*ri.n_proj_pull*sizeof(float),cudaMemcpyDeviceToHost);
