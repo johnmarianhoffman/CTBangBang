@@ -28,6 +28,9 @@ int finalize_image_stack(struct recon_metadata * mr){
     struct recon_params rp=mr->rp;
     struct recon_info ri=mr->ri;
 
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
+    
     // Copy reference structures to device
     cudaMemcpyToSymbol(d_ri,&mr->ri,sizeof(struct recon_info),0,cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(d_rp,&mr->rp,sizeof(struct recon_params),0,cudaMemcpyHostToDevice);
@@ -38,7 +41,7 @@ int finalize_image_stack(struct recon_metadata * mr){
 
     float * d_temp_out;
     cudaMalloc(&d_temp_out,rp.nx*rp.ny*ri.n_slices_recon*sizeof(float));
-    
+
     int recon_direction=fabs(rp.end_pos-rp.start_pos)/(rp.end_pos-rp.start_pos);
     if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
 	recon_direction=1;
@@ -90,12 +93,13 @@ int finalize_image_stack(struct recon_metadata * mr){
     }
     cudaMemcpy(d_raw_recon_locations,raw_recon_locations,n_raw_images*sizeof(float),cudaMemcpyHostToDevice);
 
+    //dim3 threads_thicken(32,32,1);
     dim3 threads_thicken(32,32,1);
     dim3 blocks_thicken(rp.nx/threads_thicken.x,rp.ny/threads_thicken.y,1);
     
     for (int k=0; k<n_slices_final; k++){
 	float slice_location=recon_locations[k];
-	thicken_slices<<<blocks_thicken,threads_thicken,n_raw_images*sizeof(float)>>>(mr->ctd.d_final_image_stack,d_temp_out,d_raw_recon_locations,k,slice_location);
+	thicken_slices<<<blocks_thicken,threads_thicken,n_raw_images*sizeof(float),stream>>>(mr->ctd.d_final_image_stack,d_temp_out,d_raw_recon_locations,k,slice_location);
 	gpuErrchk( cudaPeekAtLastError() );
 	gpuErrchk( cudaDeviceSynchronize() );
     }
@@ -106,6 +110,8 @@ int finalize_image_stack(struct recon_metadata * mr){
     cudaFree(d_raw_recon_locations);
     cudaFree(d_temp_out);
     cudaFree(mr->ctd.d_final_image_stack);
+
+    cudaStreamDestroy(stream);
 
     free(recon_locations);
     free(raw_recon_locations);
