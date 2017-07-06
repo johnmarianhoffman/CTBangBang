@@ -56,6 +56,16 @@ void usage(){
     exit(0);
 }
 
+inline int exists(char * fname){
+    int exists;
+    if (access(fname,F_OK)!=-1)
+        exists=1;
+    else
+        exists=0;
+
+    return exists;    
+}
+
 int main(int argc, char ** argv){
 
     struct recon_metadata mr;
@@ -152,6 +162,10 @@ int main(int argc, char ** argv){
     /* --- Step 1-3 handled by functions in setup.cu --- */
     // Step 1: Parse input file
     log(mr.flags.verbose,"Reading PRM file...\n");
+    if (!exists(argv[argc-1])){
+        perror("Parameter file not found. Check path and try again. Exiting:");
+        exit(13);            
+    }    
     mr.rp=configure_recon_params(argv[argc-1]);
 
     /* --- Check for defined output directory, set to desktop if empty --- */

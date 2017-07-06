@@ -39,7 +39,16 @@ else
 	chmod +x ${SCRIPT_PATH}ctbb_recon
 	@echo "#!/bin/bash" > ${SCRIPT_PATH}ctbb_recon
 	@echo ${INSTALL_PATH}ctbangbang \"\$$\@\" >> ${SCRIPT_PATH}ctbb_recon
+
+	@echo "exit_status=\$$?" >> ${SCRIPT_PATH}ctbb_recon
+	@echo "if [ \$$exit_status -eq 0 ]" >> ${SCRIPT_PATH}ctbb_recon
+	@echo "then" >> ${SCRIPT_PATH}ctbb_recon
 	@echo notify-send \"Reconstruction completed\" >> ${SCRIPT_PATH}ctbb_recon
+	@echo "else" >> ${SCRIPT_PATH}ctbb_recon
+	@echo notify-send \"Reconstruction FAILED\" >> ${SCRIPT_PATH}ctbb_recon
+	@echo "fi" >> ${SCRIPT_PATH}ctbb_recon
+	@echo "exit \$$exit_status" >> ${SCRIPT_PATH}ctbb_recon
+
 endif
 
 

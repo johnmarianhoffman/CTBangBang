@@ -108,7 +108,7 @@ int configure_paths(struct recon_metadata *mr){
 struct recon_params configure_recon_params(char * filename){
     struct recon_params prms;
     memset(&prms, 0,sizeof(prms));
-
+    
     parse_config(filename,&prms);
 
     // Convert our table_dir_str to our table_dir integer
