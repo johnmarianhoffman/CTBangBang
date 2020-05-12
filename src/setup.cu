@@ -27,158 +27,103 @@
 #include <pwd.h>
 
 #include <setup.h>
+#include <parse_config.h>
 #include <ctbb/ctbb_read.h>
 
 #define pi 3.1415926535897f
 #define BLOCK_SLICES 32
 
+void split_path_file(char**p, char**f, char *pf);
 int array_search(float key,double * array,int numel_array,int search_type);
+void remove_trailing_slash(char * str);
+
+int configure_paths(struct recon_metadata *mr){
+    
+    /* --- Get working directory and User's home directory --- */
+    struct passwd *pw=getpwuid(getuid());    
+    const char * home_dir=pw->pw_dir;
+    strcpy(mr->home_dir,home_dir);
+    getcwd(mr->cwd,4096*sizeof(char));
+
+    /* --- Get where the executable is running ---*/
+    char full_exe_path[4096]={0};
+    char * exe_path=(char*)calloc(4096,sizeof(char));
+    char * exe_name=(char*)calloc(255,sizeof(char));
+    readlink("/proc/self/exe",full_exe_path,4096);
+    split_path_file(&exe_path,&exe_name,full_exe_path);
+    strcpy(mr->install_dir,exe_path);
+    mr->install_dir[strlen(mr->install_dir)-1]=0;
+
+    /* --- Check for defined output path ---*/
+    // if not defined, set to current working directory
+    if (strcmp(mr->rp.output_dir,"")==0)
+	strcpy(mr->rp.output_dir,mr->cwd);
+
+    /* --- Check for output file name --- */
+    // if not defined, set to rawdatafile.img
+    if(strcmp(mr->rp.output_file,"")==0){
+	char fullpath[4096+255]={0};
+	sprintf(fullpath,"%s.img",mr->rp.raw_data_file);
+	strcpy(mr->rp.output_file,fullpath);
+    }
+
+    // Cleanup directory strings
+    remove_trailing_slash(mr->home_dir);
+    remove_trailing_slash(mr->install_dir);
+    remove_trailing_slash(mr->cwd);    
+    remove_trailing_slash(mr->rp.output_dir);
+    remove_trailing_slash(mr->rp.raw_data_dir);    
+
+    /* Check to make sure we can read the raw data file */
+    char fullpath[4096+255]={0};
+    FILE * fid;    
+    memset(fullpath,0,4096+255);
+    sprintf(fullpath,"%s/%s",mr->rp.raw_data_dir,mr->rp.raw_data_file);
+    
+    fid=fopen(fullpath,"r");
+    if (fid==NULL){
+	return 1;
+    }
+    else{
+    	fclose(fid);
+    }
+    
+    /* Check to make sure we can write to output file */
+    memset(fullpath,0,4096+255);
+    sprintf(fullpath,"%s/%s",mr->rp.output_dir,mr->rp.output_file);
+
+    fid=fopen(fullpath,"w");
+    if (fid==NULL){
+	return 2;
+    }
+    else{
+    	fclose(fid);
+	// Theres a better way to do this... but for now this works
+	remove(fullpath);	
+    }
+    
+    return 0;
+}
 
 struct recon_params configure_recon_params(char * filename){
     struct recon_params prms;
     memset(&prms, 0,sizeof(prms));
     
-    char * prm_buffer;
-    char *token;
+    parse_config(filename,&prms);
 
-    FILE * prm_file;
-    //printf("%s\n",filename);
-    prm_file=fopen(filename,"r");
-    if (prm_file==NULL){
-	perror("Parameter file not found.");
-	exit(1);
+    // Convert our table_dir_str to our table_dir integer
+    if (strcmp(prms.table_dir_str,"")!=0){
+	if (strcmp(prms.table_dir_str,"out")==0){
+	    prms.table_dir=1;
+	}
+	else if (strcmp(prms.table_dir_str,"in")==0){
+	    prms.table_dir=-1;
+	}
+	else{
+	    printf("WARNING: TableDir parameter must be 'in' or 'out' (no quotes).  Defaulting to 'out'.\n");
+	    prms.table_dir=1;
+	}
     }
-
-    fseek(prm_file, 0, SEEK_END);
-    size_t prm_size = ftell(prm_file);
-    rewind(prm_file);
-    prm_buffer = (char*)malloc(prm_size + 1);
-    prm_buffer[prm_size] = '\0';
-    fread(prm_buffer, sizeof(char), prm_size, prm_file);
-    fclose(prm_file);
-
-    token=strtok(prm_buffer," \t\n%");
-
-    //Parse parameter file
-    while (token!=NULL){
-	if (strcmp(token,"RawDataDir:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%s",prms.raw_data_dir);
-	}
-	else if (strcmp(token,"RawDataFile:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%s",prms.raw_data_file);
-	}
-	else if (strcmp(token,"OutputDir:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%s",prms.output_dir);
-	}
-	else if (strcmp(token,"Nrows:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%i",&prms.n_rows);
-	}
-	else if (strcmp(token,"CollSlicewidth:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.coll_slicewidth);
-	}
-	else if (strcmp(token,"StartPos:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.start_pos);
-	}
-	else if (strcmp(token,"EndPos:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.end_pos);
-	}
-	else if ((strcmp(token,"PitchValue:")==0)||(strcmp(token,"TableFeed:")==0)){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.pitch_value);
-	}
-	else if (strcmp(token,"SliceThickness:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.slice_thickness);
-	}
-	else if (strcmp(token,"AcqFOV:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.acq_fov);
-	}
-	else if (strcmp(token,"ReconFOV:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%f",&prms.recon_fov);
-	}
-	else if (strcmp(token,"ReconKernel:")==0){
-	    token=strtok(NULL," \t\n%");
-	    sscanf(token,"%d",&prms.recon_kernel);
-	}
-	else if (strcmp(token,"Readings:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%d",&prms.n_readings); 
- 	} 
- 	else if (strcmp(token,"Xorigin:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%f",&prms.x_origin); 
- 	} 
- 	else if (strcmp(token,"Yorigin:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%f",&prms.y_origin); 
- 	} 
- 	else if (strcmp(token,"Zffs:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.z_ffs); 
- 	} 
- 	else if (strcmp(token,"Phiffs:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.phi_ffs); 
- 	} 
- 	else if (strcmp(token,"Scanner:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%s",prms.scanner); 
- 	} 
- 	else if (strcmp(token,"FileType:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.file_type); 
- 	}
-	else if (strcmp(token,"FileSubType:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.file_subtype); 
- 	} 
- 	else if (strcmp(token,"RawOffset:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.raw_data_offset); 
- 	} 
- 	else if (strcmp(token,"Nx:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.nx); 
- 	} 
- 	else if (strcmp(token,"Ny:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%i",&prms.ny); 
- 	}
-	else if (strcmp(token,"TubeStartAngle:")==0){ 
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%f",&prms.tube_start_angle); 
- 	}
-	else if (strcmp(token,"TableDir:")==0){
-	    // Note, this parameter is ignored if not using a binary file
-	    char tmp[4096]={0};
- 	    token=strtok(NULL," \t\n%"); 
- 	    sscanf(token,"%s",tmp);
-	    if (strcmp(tmp,"out")==0){
-		prms.table_dir=1;
-	    }
-	    else if (strcmp(tmp,"in")==0){
-		prms.table_dir=-1;
-	    }
-	    else{
-		printf("WARNING: TableDir parameter must be 'in' or 'out' (no quotes).  Defaulting to 'out'.\n");
-		prms.table_dir=1;
-	    }
- 	} 
- 	else { 
- 	    //token=strtok(NULL," \t\n%"); 
- 	} 
-
- 	token=strtok(NULL," \t\n%"); 
-    } 
 
     // Perform some sanity checks to make sure that we have read in the "essentials"
     // Bail if critical values are zero
@@ -192,7 +137,7 @@ struct recon_params configure_recon_params(char * filename){
 	exit_flag=1;
     }
     if (prms.slice_thickness==0){
-	printf("CollSlicewidth was not properly set in configuration.  Check parameter file.\n");
+	printf("SliceThickness was not properly set in configuration.  Check parameter file.\n");
 	exit_flag=1;
     }
     if (prms.pitch_value==0){
@@ -227,7 +172,6 @@ struct recon_params configure_recon_params(char * filename){
 	exit(1);
     }
     
-    free(prm_buffer); 
     return prms; 
 } 
 
@@ -241,6 +185,7 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
     char * token;
 
     cg.table_direction=rp.table_dir;
+					
 
     char path[4096+255];
     int scanner=-1;
@@ -314,11 +259,11 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 	    }
 	    else if (strcmp(token,"NProjTurn:")==0){
 		token=strtok(NULL," \t\n%");
-		sscanf(token,"%i",&cg.n_proj_turn);
+		sscanf(token,"%lu",&cg.n_proj_turn);
 	    }
 	    else if (strcmp(token,"NChannels:")==0){
 		token=strtok(NULL," \t\n%");
-		sscanf(token,"%i",&cg.n_channels);
+		sscanf(token,"%lu",&cg.n_channels);
 	    }
 	    else if (strcmp(token,"ReverseRowInterleave:")==0){
 		token=strtok(NULL," \t\n%");
@@ -354,10 +299,10 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 	break;
     case 0: // Non-standard scanner (in this case Fred Noo's Simulated Scanner)
 
-	//float det_spacing_1=1.4083f;
-	//float det_spacing_2=1.3684f;
+	    //float det_spacing_1=1.4083f;
+	    //float det_spacing_2=1.3684f;
 	 
-	// Physical geometry of the scanner (cannot change from scan to scan) 
+	    // Physical geometry of the scanner (cannot change from scan to scan) 
 	cg.r_f=570.0f; 
 	cg.src_to_det=1040.0f; 
 	cg.anode_angle=7.0f*pi/180.0f; 
@@ -380,7 +325,7 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 
     case 1: // Definition AS 
 	
-	// Physical geometry of the scanner (cannot change from scan to scan) 
+	    // Physical geometry of the scanner (cannot change from scan to scan) 
 	cg.r_f=595.0f; 
 	cg.src_to_det=1085.6f; 
 	cg.anode_angle=7.0f*pi/180.0f; 
@@ -403,28 +348,28 @@ struct ct_geom configure_ct_geom(struct recon_metadata *mr){
 
     case 2: // Sensation 64 
 
- 	// Physical geometry of the scanner (cannot change from scan to scan) 
- 	cg.r_f=570.0f; 
- 	cg.src_to_det=1040.0f; 
- 	//cg.anode_angle=12.0f*pi/180.0f;
- 	cg.anode_angle=7.0f*pi/180.0f;
- 	cg.fan_angle_increment=0.07758621f*pi/180.0f;
- 	//cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f);
- 	cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f); 	
- 	cg.central_channel=334.25f; 
+	    // Physical geometry of the scanner (cannot change from scan to scan) 
+	cg.r_f=570.0f; 
+	cg.src_to_det=1040.0f; 
+	//cg.anode_angle=12.0f*pi/180.0f;
+	cg.anode_angle=7.0f*pi/180.0f;
+	cg.fan_angle_increment=0.07758621f*pi/180.0f;
+	//cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f);
+	cg.theta_cone=2.0f*atan(7.5f*1.2f/cg.r_f); 	
+	cg.central_channel=334.25f; 
 
- 	// Size and setup of the detector helix 
- 	cg.n_proj_turn=1160; 
- 	cg.n_proj_ffs=cg.n_proj_turn*pow(2,rp.phi_ffs)*pow(2,rp.z_ffs); 
- 	cg.n_channels=672; 
- 	cg.n_channels_oversampled=2*cg.n_channels; 
- 	cg.n_rows=(unsigned int)rp.n_rows; 
- 	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
- 	cg.z_rot=rp.pitch_value;
- 	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
- 	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
+	// Size and setup of the detector helix 
+	cg.n_proj_turn=1160; 
+	cg.n_proj_ffs=cg.n_proj_turn*pow(2,rp.phi_ffs)*pow(2,rp.z_ffs); 
+	cg.n_channels=672; 
+	cg.n_channels_oversampled=2*cg.n_channels; 
+	cg.n_rows=(unsigned int)rp.n_rows; 
+	cg.n_rows_raw=(unsigned int)(rp.n_rows/pow(2,rp.z_ffs)); 
+	cg.z_rot=rp.pitch_value;
+	cg.add_projections=(cg.fan_angle_increment*cg.n_channels/2)/(2.0f*pi/cg.n_proj_turn)+10; 
+	cg.add_projections_ffs=cg.add_projections*pow(2,rp.z_ffs)*pow(2,rp.phi_ffs); 
 
- 	break; 
+	break; 
     } 
 
     cg.acq_fov=rp.acq_fov; 
@@ -446,10 +391,11 @@ void configure_reconstruction(struct recon_metadata *mr){
     mr->tube_angles=(float*)calloc(rp.n_readings,sizeof(float));
     mr->table_positions=(double*)calloc(rp.n_readings,sizeof(double));
     
-    strcat(rp.raw_data_dir,rp.raw_data_file);
+    char fullpath[4096+255]={0};
+    sprintf(fullpath,"%s/%s",rp.raw_data_dir,rp.raw_data_file);
     
     FILE * raw_file;
-    raw_file=fopen(rp.raw_data_dir,"rb");
+    raw_file=fopen(fullpath,"rb");
     if (raw_file==NULL){
 	perror("Raw data file not found.");
 	exit(1);	
@@ -533,13 +479,19 @@ void configure_reconstruction(struct recon_metadata *mr){
     fclose(raw_file);
 
     /* --- Figure out how many and which projections to grab --- */
+
     int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
     int n_slices_block=BLOCK_SLICES;
-    
+
     int recon_direction=fabs(rp.end_pos-rp.start_pos)/(rp.end_pos-rp.start_pos);
     if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
 	recon_direction=1;
 
+    // override end_pos if user has set the number of slices
+    if (rp.n_slices!=0){
+	rp.end_pos=rp.start_pos+(rp.n_slices-1)*rp.slice_thickness;
+    }
+    
     float recon_start_pos = rp.start_pos - recon_direction*rp.slice_thickness;
     float recon_end_pos   = rp.end_pos   + recon_direction*rp.slice_thickness;//rp.start_pos+recon_direction*(n_slices_recon-1)*rp.coll_slicewidth;
 
@@ -569,14 +521,14 @@ void configure_reconstruction(struct recon_metadata *mr){
     // Check "testing" flag, write raw to disk if set
     if (mr->flags.testing){
 	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"table_positions.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/table_positions.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->table_positions,sizeof(double),rp.n_readings,outfile);
 	fclose(outfile);
 
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"tube_angles.ct_test");
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/tube_angles.ct_test");
 	outfile=fopen(fullpath,"w");
 	fwrite(mr->tube_angles,sizeof(float),rp.n_readings,outfile);
 	fclose(outfile);
@@ -623,13 +575,14 @@ void configure_reconstruction(struct recon_metadata *mr){
     idx_pull_end+=256;
    
     int n_proj_pull=idx_pull_end-idx_pull_start;
-
+    
     // Ensure that we have a number of projections divisible by 128 (because GPU)
     n_proj_pull=(n_proj_pull-1)+(128-(n_proj_pull-1)%128);
     idx_pull_end=idx_pull_start+n_proj_pull;
     
     // copy this info into our recon metadata
     mr->cg.table_direction=array_direction;
+    mr->rp.end_pos=rp.end_pos;
     mr->ri.n_ffs=n_ffs;
     mr->ri.n_slices_requested=n_slices_requested;
     mr->ri.n_slices_recon=n_slices_recon;
@@ -654,6 +607,9 @@ void update_block_info(recon_metadata *mr){
     struct recon_info ri=mr->ri;
     struct recon_params rp=mr->rp;
     struct ct_geom cg=mr->cg;
+
+    free(mr->ctd.raw);
+    free(mr->ctd.rebin);
     
     /* --- Figure out how many and which projections to grab --- */
     int n_ffs=pow(2,rp.z_ffs)*pow(2,rp.phi_ffs);
@@ -662,8 +618,8 @@ void update_block_info(recon_metadata *mr){
     if (recon_direction!=1&&recon_direction!=-1) // user requests one slice (end_pos==start_pos)
 	recon_direction=1;
     
-    float block_slice_start=ri.recon_start_pos+recon_direction*ri.cb.block_idx*rp.coll_slicewidth*ri.n_slices_block;
-    float block_slice_end=block_slice_start+recon_direction*(ri.n_slices_block-1)*rp.coll_slicewidth;
+    float block_slice_start=ri.recon_start_pos+recon_direction*ri.cb.block_idx*rp.coll_slicewidth*(float)ri.n_slices_block;
+    float block_slice_end=block_slice_start+(float)recon_direction*((float)ri.n_slices_block-1.0f)*rp.coll_slicewidth;
     int array_direction=fabs(mr->table_positions[100]-mr->table_positions[0])/(mr->table_positions[100]-mr->table_positions[0]);
     int idx_block_slice_start=array_search(block_slice_start,mr->table_positions,rp.n_readings,array_direction);
     int idx_block_slice_end=array_search(block_slice_end,mr->table_positions,rp.n_readings,array_direction);
@@ -715,6 +671,11 @@ void update_block_info(recon_metadata *mr){
     mr->ri.n_proj_pull=n_proj_pull;
 
     mr->ri.cb.block_idx++;
+
+    // Reallocate our raw and rebin arrays to account for changing n_proj_pull
+    mr->ctd.raw=(float*)calloc(cg.n_channels*cg.n_rows_raw*n_proj_pull,sizeof(float));
+    mr->ctd.rebin=(float*)calloc(cg.n_channels_oversampled*cg.n_rows*(n_proj_pull-2*cg.add_projections_ffs)/n_ffs,sizeof(float));
+    
 }
 
 void extract_projections(struct recon_metadata * mr){
@@ -724,8 +685,9 @@ void extract_projections(struct recon_metadata * mr){
     FILE * raw_file;
     struct recon_params rp=mr->rp;
     struct ct_geom cg=mr->cg;
-    strcat(rp.raw_data_dir,rp.raw_data_file);
-    raw_file=fopen(rp.raw_data_dir,"rb");
+    char fullpath[4096+255]={0};
+    sprintf(fullpath,"%s/%s",rp.raw_data_dir,rp.raw_data_file);
+    raw_file=fopen(fullpath,"rb");
     
     switch (mr->rp.file_type){
     case 0:{ // binary
@@ -775,7 +737,7 @@ void extract_projections(struct recon_metadata * mr){
 	    ReadForceFrame(raw_file,mr->ri.idx_pull_start+i,cg.n_channels,cg.n_rows_raw,frame_holder);
 
 	    for (int j=0;j<cg.n_channels*cg.n_rows_raw;j++){
-	    	mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j];
+		mr->ctd.raw[j+cg.n_channels*cg.n_rows_raw*i]=frame_holder[j];
 	    }
 
 	}
@@ -792,9 +754,9 @@ void extract_projections(struct recon_metadata * mr){
 
     // Check "testing" flag, write raw to disk if set
     if (mr->flags.testing){
-	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"raw.ct_test");
+	memset(fullpath,0,4096+255);
+	strcpy(fullpath,mr->rp.output_dir);
+	strcat(fullpath,"/raw.ct_test");
 	FILE * outfile=fopen(fullpath,"w");
 	fwrite(mr->ctd.raw,sizeof(float),cg.n_channels*cg.n_rows_raw*mr->ri.n_proj_pull,outfile);
 	fclose(outfile);
@@ -806,121 +768,40 @@ void extract_projections(struct recon_metadata * mr){
 
 void finish_and_cleanup(struct recon_metadata * mr){
 
-    struct recon_params rp=mr->rp;
-    struct recon_info ri=mr->ri;
-
-    float * temp_out=(float*)calloc(rp.nx*rp.ny*ri.n_slices_recon,sizeof(float));
-
-    int recon_direction=fabs(rp.end_pos-rp.start_pos)/(rp.end_pos-rp.start_pos);
-    if (recon_direction!=1&&recon_direction!=-1) // user request one slice (end_pos==start_pos)
-	recon_direction=1;
+    int n_slices_final=floor(fabs(mr->rp.end_pos-mr->rp.start_pos)/mr->rp.slice_thickness)+1;
     
-    int table_direction=(mr->table_positions[1000]-mr->table_positions[0])/abs(mr->table_positions[1000]-mr->table_positions[0]);
-    if (table_direction!=1&&table_direction!=-1)
-	printf("Axial scans are currently unsupported, or a different error has occurred\n");
-    
-    // Check for a reversed stack of images and flip, otherwise just copy
-    if (recon_direction!=table_direction){
-	for (int b=0;b<ri.n_blocks;b++){
-	    for (int z=0;z<ri.n_slices_block;z++){
-		for (int x=0;x<rp.nx;x++){
-		    for (int y=0;y<rp.ny;y++){
-			long block_offset=b*rp.nx*rp.ny*ri.n_slices_block;
-			temp_out[z*rp.nx*rp.ny+y*rp.nx+x+block_offset]=mr->ctd.image[((ri.n_slices_block-1)-z)*rp.nx*rp.ny+y*rp.nx+x+block_offset];
-		    }
-		}
-	    }
-	}
-    }
-    else{
-	for (int z=0;z<ri.n_slices_recon;z++){
-	    for (int x=0;x<rp.nx;x++){
-		for (int y=0;y<rp.ny;y++){
-		    temp_out[z*rp.nx*rp.ny+y*rp.nx+x]=mr->ctd.image[z*rp.nx*rp.ny+y*rp.nx+x];
-		}
-	    }
-	}	
-    }
-
-    // Once we have straightened our image stack out, we need to adjust slice thickness
-    // to match what the user requested.
-    // We use a triangle average with the FWHM equal to the requested slice thickness
-
-    int n_raw_images=ri.n_slices_block*ri.n_blocks;
-    int n_slices_final=floor(fabs(rp.end_pos-rp.start_pos)/rp.slice_thickness)+1;
-    float * final_image_stack=(float*)calloc(rp.nx*rp.ny*n_slices_final,sizeof(float));
-
-    float * recon_locations;
-    recon_locations=(float*)calloc(n_slices_final,sizeof(float));
-    for (int i=0;i<n_slices_final;i++){
-	recon_locations[i]=rp.start_pos+recon_direction*i*rp.slice_thickness;
-    }
-
-    float * raw_recon_locations;
-    raw_recon_locations=(float*)calloc(n_raw_images,sizeof(float));
-    for (int i=0;i<n_raw_images;i++){
-	raw_recon_locations[i]=ri.recon_start_pos+recon_direction*i*rp.coll_slicewidth;//(rp.start_pos-recon_direction*rp.slice_thickness)+recon_direction*i*rp.coll_slicewidth;
-    }
-
-    float * weights;
-    weights=(float*)calloc(n_raw_images,sizeof(float));
-
-    // Loop over slices
-    for (int k=0;k<n_slices_final;k++){
-	float slice_location=recon_locations[k];
-	// Calculate all of the weights for the unaveraged slices
-	float sum_weights=0;
-	for (int step=0;step<ri.n_slices_block*ri.n_blocks;step++){
-	    weights[step]=fmax(0.0f,1.0f-fabs(raw_recon_locations[step]-slice_location)/rp.slice_thickness);
-	    sum_weights+=weights[step];
-	}
-	
-	// Loop over pixels in slice k
-	for (int i=0;i<rp.nx;i++){
-	    for (int j=0;j<rp.ny;j++){
-		// Carry out the averaging
-		int out_idx=k*rp.nx*rp.ny+j*rp.nx+i;
-		for (int raw_slice=0;raw_slice<n_raw_images;raw_slice++){		    
-		    if (weights[raw_slice]!=0){
-			int raw_idx=raw_slice*rp.nx*rp.ny+j*rp.nx+i;
-			final_image_stack[out_idx]+=(weights[raw_slice]/sum_weights)*temp_out[raw_idx];
-		    }
-		}
-	    }
-	}
-    }
-
-    // Write the image data to disk    
+    // Write the image data to disk
     char fullpath[4096+255]={0};
-    sprintf(fullpath,"%s%s.img",mr->output_dir,mr->rp.raw_data_file);
+    sprintf(fullpath,"%s/%s",mr->rp.output_dir,mr->rp.output_file);
     FILE * outfile=fopen(fullpath,"w");
-    fwrite(final_image_stack,sizeof(float),rp.nx*rp.ny*n_slices_final,outfile);
+    fwrite(mr->ctd.final_image_stack,sizeof(float),mr->rp.nx*mr->rp.ny*n_slices_final,outfile);
     fclose(outfile);
 
-    // Check "testing" flag, if set write all reconstructed data to disk
-    if (mr->flags.testing){
-	char fullpath[4096+255];
-	strcpy(fullpath,mr->output_dir);
-	strcat(fullpath,"image_data.ct_test");
-	FILE * outfile=fopen(fullpath,"w");
-	fwrite(temp_out,sizeof(float),rp.nx*rp.ny*n_slices_final,outfile);
-	fclose(outfile);
-    }
-
-    // Free stuff allocated inside cleanup
-    free(temp_out);
-    free(final_image_stack);
-    free(recon_locations);
-    free(raw_recon_locations);
-    free(weights);
-
     // Free all remaining allocations in metadata
-    //free(mr->ctd.rebin);
-    //free(mr->ctd.image);
-    //free(mr->ctd.raw);
-    // free(mr->tube_angles);
-    //free(mr->table_positions);
+    free(mr->ctd.rebin);
+    free(mr->ctd.image);
+    free(mr->ctd.raw);
+    free(mr->ctd.final_image_stack);    
+    free(mr->tube_angles);
+    free(mr->table_positions);
 }
+
+
+void remove_trailing_slash(char * str){
+    size_t len=strlen(str);
+    if ((len>0)&&(str[len-1]=='/')){
+	str[len-1]='\0';
+    }
+}
+
+void split_path_file(char**p, char**f, char *pf) {
+    char *slash = pf, *next;
+    while ((next = strpbrk(slash + 1, "\\/"))) slash = next;
+    if (pf != slash) slash++;
+    *p = strndup(pf, slash - pf);
+    *f = strdup(slash);
+}
+
 
 int array_search(float key,double * array,int numel_array,int search_type){
     int idx=0;

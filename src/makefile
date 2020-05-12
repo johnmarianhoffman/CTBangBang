@@ -10,18 +10,21 @@ LIBS=-lfftw3 -lm -lctbb_read
 
 CFLAGS=$(INCLUDES) -g
 
-_OBJ=main.o setup.o interp.o preprocessing.o rebin_filter.o rebin_filter_cpu.o backproject.o backproject_cpu.o
+_OBJ=main.o parse_config.o setup.o interp.o preprocessing.o rebin_filter.o rebin_filter_cpu.o backproject.o backproject_cpu.o finalize_image_stack.o finalize_image_stack_cpu.o
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 
 all: ../ctbangbang
 
-../ctbangbang: $(OBJ)
+../ctbangbang: $(OBJ) 
 	(cd obj && $(NVCC) -g -o ../../ctbangbang *.o $(LIBS))
 
-obj/main.o: main.cu $(IDIR_RECON)recon_structs.h $(IDIR_RECON)setup.h $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)backproject.h
+obj/main.o: main.cu $(IDIR_RECON)setup.h $(IDIR_RECON)rebin_filter.h $(IDIR_RECON)backproject.h $(IDIR_RECON)ctbb_macros.h $(IDIR_RECON)recon_structs.h $(IDIR_RECON)parse_config.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<
 
-obj/setup.o: setup.cu $(IDIR_RECON)setup.h
+obj/parse_config.o: parse_config.cu $(IDIR_RECON)parse_config.h
+	$(NVCC) $(CFLAGS) -c -o $@ $<
+
+obj/setup.o: setup.cu $(IDIR_RECON)setup.h $(IDIR_RECON)parse_config.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<
 
 obj/interp.o: interp.cu $(IDIR_RECON)interp.h
@@ -41,6 +44,13 @@ obj/backproject.o: backproject.cu $(IDIR_RECON)backproject.cuh
 
 obj/backproject_cpu.o: backproject_cpu.cu $(IDIR_RECON)backproject_cpu.h
 	$(NVCC) $(CFLAGS) -c -o $@ $<
+
+obj/finalize_image_stack_cpu.o: finalize_image_stack_cpu.cu $(IDIR_RECON)finalize_image_stack_cpu.h
+	$(NVCC) $(CFLAGS) -c -o $@ $<
+
+obj/finalize_image_stack.o: finalize_image_stack.cu $(IDIR_RECON)finalize_image_stack.h $(IDIR_RECON)finalize_image_stack.cuh
+	$(NVCC) $(CFLAGS) -c -o $@ $<
+
 
 .PHONY: all test clean
 

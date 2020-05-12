@@ -18,19 +18,11 @@
 /* Questions and comments should be directed to */
 /* jmhoffman@mednet.ucla.edu with "CTBANGBANG" in the subject line*/
 
-// Non-GPU functions and data types to configure recontructions 
-#ifndef setup_h
-#define setup_h
-
 #include <recon_structs.h>
 
-// Step 1-3 functions
-int configure_paths(struct recon_metadata *mr);
-struct recon_params configure_recon_params(char * filename);
-struct ct_geom configure_ct_geom(struct recon_metadata *mr);
-void configure_reconstruction(struct recon_metadata *mr);
-void update_block_info(recon_metadata *mr);
-void extract_projections(struct recon_metadata * mr);
-void finish_and_cleanup(struct recon_metadata * mr);
+#ifndef finalize_image_stack_h
+#define finalize_image_stack_h
+
+int finalize_image_stack(struct recon_metadata * mr);
 
 #endif
